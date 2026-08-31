@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
-import { conciseDetailSource, detailRatingPresentations, detailSectionOrder, shouldRenderPublicReviews } from "../src/media-detail-modal";
-import type { BookRecord } from "../src/types";
+import { conciseDetailSource, detailRatingPresentations, detailSectionOrder, resolveAudiobookDetailRecord, shouldRenderPublicReviews } from "../src/media-detail-modal";
+import type { AudiobookRecord, BookRecord } from "../src/types";
 
 describe("public-review visibility", () => {
   it("shows an honest localized Amazon fallback when no rating source exists", () => {
     const record = {
       title: "J Is for Junk Economics", author: "Michael Hudson", language: "en", isbn: "",
       externalIdentities: [{ source: "amazon", url: "https://www.amazon.com/dp/B071W31MTM", locale: "en-US", checkedAt: "2026-08-29", matchConfidence: 1, editionId: "B071W31MTM" }],
-    } as BookRecord;
+    } as unknown as BookRecord;
     expect(detailRatingPresentations(record)).toEqual([expect.objectContaining({
       unavailable: true,
       source: "Amazon.com product",
@@ -32,16 +32,76 @@ describe("public-review visibility", () => {
         checkedAt: "2026-08-30", matchConfidence: 1, value: 4.4, count: 12,
         status: "provider-reported",
       }],
-    } as BookRecord;
+    } as unknown as BookRecord;
     const ratings = detailRatingPresentations(record);
     expect(ratings).toHaveLength(2);
     expect(ratings[0]).toMatchObject({ source: "google-books", unavailable: false });
     expect(ratings[1]).toMatchObject({ status: "unverified", unavailable: true });
   });
 
-  it("never shows public reviews in minimal mode or for audiobooks", () => {
+  it("never shows public reviews in minimal mode, but allows sourced audiobook reviews in product mode", () => {
     expect(shouldRenderPublicReviews("minimal", true, false)).toBe(false);
-    expect(shouldRenderPublicReviews("product", true, true)).toBe(false);
+    expect(shouldRenderPublicReviews("product", true, true)).toBe(true);
+  });
+
+  it("uses native audiobook enrichment before a matched ebook fallback", () => {
+    const audiobook = {
+      title: "Native Audio",
+      author: "Audio Author",
+      language: "en",
+      description: "Description from the audiobook record.",
+      rating: 4.8,
+      ratingsCount: 81,
+      category: ["Audiobooks", "Technology"],
+      reviews: [{ source: "library", author: "Listener", rating: 5, text: "Excellent narration." }],
+      sourceRatings: [{
+        source: "audio-provider", url: "https://example.test/audio", locale: "en",
+        checkedAt: "2026-08-31", matchConfidence: 1, value: 4.8, count: 81,
+        status: "provider-reported",
+      }],
+    } as AudiobookRecord;
+    const matchedBook = {
+      title: "Matched Ebook", author: "Audio Author", language: "en", isbn: "",
+      description: "Fallback ebook description.", rating: 3.2, ratingsCount: 4,
+      categories: ["Fallback"], reviews: [],
+      sourceRatings: [{
+        source: "ebook-provider", url: "https://example.test/ebook", locale: "en",
+        checkedAt: "2026-08-31", matchConfidence: 1, value: 3.2, count: 4,
+        status: "provider-reported",
+      }],
+      sourceDescriptions: [{
+        source: "ebook-provider", url: "https://example.test/ebook", locale: "en",
+        checkedAt: "2026-08-31", matchConfidence: 1, text: "Fallback ebook description.", kind: "source",
+      }],
+    } as unknown as BookRecord;
+
+    const resolved = resolveAudiobookDetailRecord(audiobook, matchedBook);
+    expect(resolved.description).toBe("Description from the audiobook record.");
+    expect(resolved.rating).toBe(4.8);
+    expect(resolved.sourceRatings?.[0].source).toBe("audio-provider");
+    expect(resolved.sourceDescriptions).toEqual([]);
+    expect(resolved.reviews?.[0].text).toBe("Excellent narration.");
+    expect(resolved.categories).toEqual(["Technology"]);
+  });
+
+  it("falls back field-by-field when native audiobook enrichment is missing", () => {
+    const audiobook = {
+      title: "Unmatched Audio", author: "Known Author", language: "de",
+      category: ["Audiobooks"],
+    } as AudiobookRecord;
+    const matchedBook = {
+      title: "Book", author: "Known Author", language: "de", isbn: "",
+      description: "Buchbeschreibung", rating: 4.1, ratingsCount: 9,
+      categories: ["Geschichte"], themes: ["Erinnerung"],
+    } as unknown as BookRecord;
+
+    expect(resolveAudiobookDetailRecord(audiobook, matchedBook)).toMatchObject({
+      title: "Unmatched Audio",
+      description: "Buchbeschreibung",
+      rating: 4.1,
+      categories: ["Geschichte"],
+      themes: ["Erinnerung"],
+    });
   });
 
   it("puts reader-facing sections before related items and technical metadata", () => {
@@ -90,10 +150,11 @@ describe("public-review visibility", () => {
     expect(source).toMatch(/humanizeSource\(sourced\.source\)/);
   });
 
-  it("reuses matched book presentation data for audiobook details", () => {
+  it("prefers native audiobook presentation data and keeps the matched book as fallback", () => {
     const source = fs.readFileSync(path.resolve(__dirname, "../src/media-detail-modal.ts"), "utf8");
-    expect(source).toMatch(/const authorProfileBook = audiobook \? this\.matchedBookFor\(audioRecord\) : bookRecord/);
-    expect(source).toMatch(/const ratings = record \? detailRatingPresentations\(record\) : \[\]/);
+    expect(source).toMatch(/const matchedBook = audiobook \? this\.matchedBookFor\(audioRecord\) : undefined/);
+    expect(source).toMatch(/const authorProfileBook = audiobook \? matchedBook : bookRecord/);
+    expect(source).toMatch(/resolveAudiobookDetailRecord/);
     expect(source).toMatch(/this\.t\(audiobook \? "view\.whyListen" : "view\.whyRead"\)/);
     expect(source).toMatch(/private matchedBookFor\(record: AudiobookRecord\)/);
     expect(source).toMatch(/this\.relatedSection\(parent, this\.t\("catalog\.relatedTopics"\)\)/);

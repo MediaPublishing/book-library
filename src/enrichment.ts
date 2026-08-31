@@ -1,6 +1,6 @@
 import type { FetchedBookMetadata } from "./metadata";
 import type { BookRecord } from "./types";
-import { normalizeDisplayText, normalizeMatchKey } from "./util";
+import { mergeByKey, normalizeDisplayText, normalizeMatchKey, uniqueNormalizedStrings } from "./util";
 import {
   JUNK_ECONOMICS_AMAZON_IDENTITY,
   MICHAEL_HUDSON_AUTHORITY_ID,
@@ -32,8 +32,8 @@ export function applyFetchedMetadata(book: BookRecord, fetched: FetchedBookMetad
     summary: normalizeDisplayText(book.summary || fetched.description),
     rating: book.rating || fetched.rating,
     ratingsCount: book.ratingsCount || fetched.ratingsCount,
-    categories: unique([...(book.categories || []), ...fetched.categories]),
-    enrichmentSource: unique([...(book.enrichmentSource || "").split("+"), ...fetched.source.split("+")]).join("+"),
+    categories: uniqueNormalizedStrings([...(book.categories || []), ...fetched.categories]),
+    enrichmentSource: uniqueNormalizedStrings([...(book.enrichmentSource || "").split("+"), ...fetched.source.split("+")]).join("+"),
     enrichmentState: fetched.enrichmentState || book.enrichmentState || "success",
     source: book.source === "local" ? fetched.source : book.source,
     sourceRatings: mergeByKey(book.sourceRatings || [], fetched.sourceRatings, (value) => `${value.source}\u0000${value.url}`),
@@ -70,16 +70,6 @@ export function isMichaelHudsonPilotBook(book: BookRecord): boolean {
   const title = normalizeMatchKey(book.title).replace(/^\.+/, "");
   return author === "michael hudson"
     && MICHAEL_HUDSON_PILOT_TITLES.some((candidate) => title.startsWith(candidate));
-}
-
-function mergeByKey<T>(existing: T[], incoming: T[], key: (value: T) => string): T[] {
-  const merged = new Map(existing.map((value) => [key(value), value]));
-  for (const value of incoming) merged.set(key(value), value);
-  return [...merged.values()];
-}
-
-function unique(values: string[]): string[] {
-  return [...new Set(values.map(normalizeDisplayText).filter(Boolean))];
 }
 
 function preferredAuthorIdentity(

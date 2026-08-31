@@ -2,8 +2,9 @@ import * as fs from "fs";
 import * as path from "path";
 import { assignCatalogFileNames, catalogFileName, catalogLinkTarget } from "./catalog";
 import type { Language } from "./i18n";
-import { normalizeDisplayText, sha256, slugify } from "./util";
-import type { AudiobookIndex, AudiobookMediaType, AudiobookRecord, AudiobookSourceVisibility, BookIndex, ManualAudiobookInput } from "./types";
+import { normalizeDisplayText, ratingStars, sha256, slugify } from "./util";
+import type { AudiobookIndex, AudiobookMediaType, AudiobookRecord, AudiobookSourceVisibility, BookIndex, BookExternalIdentity, BookReview, BookSourceDescription, BookSourceRating, ManualAudiobookInput } from "./types";
+import { normalizeExternalIdentities, normalizeSourceDescriptions, normalizeSourceRatings } from "./source-metadata";
 
 interface StagingItem {
   id: string;
@@ -71,7 +72,7 @@ export function parseStorageAudioFacts(rawInventory: string, root: string): Reco
   return facts;
 }
 
-interface AudiobookEnrichment {
+export interface AudiobookEnrichment {
   storagePath: string;
   /** Legacy enrichment input for a provider-specific private URL. */
   legacyPrivateUrl?: string;
@@ -85,13 +86,22 @@ interface AudiobookEnrichment {
   synopsis?: string;
   synopsisSource?: string;
   synopsisStatus?: "inventory-note" | "verified";
+  description?: string;
+  rating?: number;
+  ratingsCount?: number;
+  reviews?: BookReview[];
+  sourceRatings?: BookSourceRating[];
+  sourceDescriptions?: BookSourceDescription[];
+  externalIdentities?: BookExternalIdentity[];
+  enrichmentSource?: string;
+  enrichmentState?: AudiobookRecord["enrichmentState"];
   sourceMetadataFiles?: string[];
   localBookSources?: string[];
   publicMetadataSources?: string[];
   metadataStatus?: "inventory-indexed" | "matched-book" | "needs-enrichment" | "enriched-local-metadata" | "enriched-public-metadata";
 }
 
-interface AudiobookEnrichmentFile {
+export interface AudiobookEnrichmentFile {
   items: AudiobookEnrichment[];
 }
 
@@ -149,7 +159,22 @@ export function buildAudiobookIndex(options: AudiobookImportOptions): AudiobookI
       synopsisSource: normalizeDisplayText(enrichment?.synopsisSource) || "Verified storage inventory; no synopsis captured",
       sourceMetadataFiles: enrichment?.sourceMetadataFiles || [],
       localBookSources: enrichment?.localBookSources || [],
-      publicMetadataSources: enrichment?.publicMetadataSources || [],
+      publicMetadataSources: [...new Set([
+        ...(previous?.publicMetadataSources || []),
+        ...(enrichment?.publicMetadataSources || []),
+        ...(enrichment?.sourceRatings || []).map((value) => value.url),
+        ...(enrichment?.sourceDescriptions || []).map((value) => value.url),
+        ...(enrichment?.externalIdentities || []).map((value) => value.url),
+      ].filter((value) => /^https?:\/\//i.test(value)))],
+      description: normalizeDisplayText(enrichment?.description) || previous?.description || "",
+      rating: enrichment?.rating || previous?.rating,
+      ratingsCount: enrichment?.ratingsCount || previous?.ratingsCount,
+      reviews: enrichment?.reviews || previous?.reviews || [],
+      sourceRatings: enrichment?.sourceRatings || previous?.sourceRatings || [],
+      sourceDescriptions: enrichment?.sourceDescriptions || previous?.sourceDescriptions || [],
+      externalIdentities: enrichment?.externalIdentities || previous?.externalIdentities || [],
+      enrichmentSource: enrichment?.enrichmentSource || previous?.enrichmentSource,
+      enrichmentState: enrichment?.enrichmentState || previous?.enrichmentState,
       sourceStatus: "verified-storage-path",
       metadataStatus: enrichment?.metadataStatus || (enrichment ? "enriched-local-metadata" : (relatedBooks.length ? "matched-book" : "needs-enrichment")),
       matchStatus: match?.matchStatus || "unmatched",
@@ -226,6 +251,15 @@ export function normalizeAudiobookIndex(value: unknown): AudiobookIndex | null {
       synopsis: readString(record.synopsis) || "",
       synopsisStatus: record.synopsisStatus === "verified" ? "verified" : "inventory-note",
       synopsisSource: readString(record.synopsisSource) || "",
+      description: readString(record.description) || "",
+      rating: readNumber(record.rating),
+      ratingsCount: readNumber(record.ratingsCount),
+      reviews: readReviews(record.reviews),
+      sourceRatings: normalizeSourceRatings(Array.isArray(record.sourceRatings) ? record.sourceRatings : []),
+      sourceDescriptions: normalizeSourceDescriptions(Array.isArray(record.sourceDescriptions) ? record.sourceDescriptions : []),
+      externalIdentities: normalizeExternalIdentities(Array.isArray(record.externalIdentities) ? record.externalIdentities : []),
+      enrichmentSource: readString(record.enrichmentSource) || undefined,
+      enrichmentState: record.enrichmentState === "success" || record.enrichmentState === "partial" || record.enrichmentState === "ambiguous" || record.enrichmentState === "failed" ? record.enrichmentState : undefined,
       sourceMetadataFiles: readStringArray(record.sourceMetadataFiles) || [],
       localBookSources: readStringArray(record.localBookSources) || [],
       publicMetadataSources: readStringArray(record.publicMetadataSources) || [],
@@ -273,6 +307,12 @@ export function normalizeAudiobookRecord(record: AudiobookRecord): AudiobookReco
     category: record.category.map((value) => normalizeDisplayText(value)).filter(Boolean),
     synopsis: normalizeDisplayText(record.synopsis),
     synopsisSource: normalizeDisplayText(record.synopsisSource),
+    description: normalizeDisplayText(record.description),
+    enrichmentSource: normalizeDisplayText(record.enrichmentSource),
+    reviews: (record.reviews || []).filter((review) => Boolean(normalizeDisplayText(review.text))),
+    sourceRatings: record.sourceRatings || [],
+    sourceDescriptions: record.sourceDescriptions || [],
+    externalIdentities: record.externalIdentities || [],
   };
 }
 
@@ -318,6 +358,15 @@ export function upsertManualAudiobook(
     synopsis,
     synopsisStatus: synopsis ? "verified" : "inventory-note",
     synopsisSource: synopsis ? "Manual entry by library owner" : "Manual entry; no synopsis captured",
+    description: previous?.description || "",
+    rating: previous?.rating,
+    ratingsCount: previous?.ratingsCount,
+    reviews: previous?.reviews || [],
+    sourceRatings: previous?.sourceRatings || [],
+    sourceDescriptions: previous?.sourceDescriptions || [],
+    externalIdentities: previous?.externalIdentities || [],
+    enrichmentSource: previous?.enrichmentSource,
+    enrichmentState: previous?.enrichmentState,
     sourceMetadataFiles: previous?.sourceMetadataFiles || [],
     localBookSources: previous?.localBookSources || [],
     publicMetadataSources: previous?.publicMetadataSources || [],
@@ -423,13 +472,22 @@ export function buildLocalAudiobookIndex(options: LocalAudiobookScanOptions): Au
       synopsis: previous?.synopsis || "",
       synopsisStatus: previous?.synopsisStatus || "inventory-note",
       synopsisSource: previous?.synopsisSource || "Local folder scan; no synopsis available",
+      description: previous?.description || "",
+      rating: previous?.rating,
+      ratingsCount: previous?.ratingsCount,
+      reviews: previous?.reviews || [],
+      sourceRatings: previous?.sourceRatings || [],
+      sourceDescriptions: previous?.sourceDescriptions || [],
+      externalIdentities: previous?.externalIdentities || [],
+      enrichmentSource: previous?.enrichmentSource,
+      enrichmentState: previous?.enrichmentState,
       sourceMetadataFiles: previous?.sourceMetadataFiles || [],
       localBookSources: previous?.localBookSources || [],
       publicMetadataSources: previous?.publicMetadataSources || [],
       sourceStatus: "verified-local-path",
-      metadataStatus: "inventory-indexed",
-      matchStatus: "unmatched",
-      relatedBooks: [],
+      metadataStatus: previous?.metadataStatus || "inventory-indexed",
+      matchStatus: previous?.matchStatus || "unmatched",
+      relatedBooks: previous?.relatedBooks || [],
       relatedTopicLinks: categoryLinks(previous?.category || categorize(item.title, item.mediaType)),
       cover: previous?.cover || "",
       legacyPublicLink: previous?.legacyPublicLink || readLegacy("publicLink"),
@@ -575,8 +633,9 @@ export function renderAudiobookRecord(
     (link) => "- [[" + link + "|" + path.basename(link, ".md").replace(/\.md$/, "") + "]]"
   );
   const sourceLink = audiobookSourceLink(record);
-  const cover = record.cover
-    ? `![[covers/${record.cover}|120]]`
+  const coverFile = safeCoverFilename(record.cover);
+  const cover = coverFile
+    ? `![[covers/${coverFile}|120]]`
     : (en ? "_No cover available._" : "_Kein Cover vorhanden._");
   const synopsis = record.synopsis
     ? [
@@ -586,11 +645,13 @@ export function renderAudiobookRecord(
       "",
     ]
     : [];
-  const publicLinks = record.publicMetadataSources.map(
-    (source) => "- [" + publicSourceLabel(source) + "](" + source + ")"
-  );
+  const publicLinks = record.publicMetadataSources.flatMap((source) => {
+    const destination = markdownLinkDestination(source);
+    return destination ? ["- [" + escapeMarkdownText(publicSourceLabel(source)) + "](" + destination + ")"] : [];
+  });
+  const sourceDestination = sourceLink ? markdownLinkDestination(sourceLink) : "";
   const links = [
-    ...(sourceLink ? ["- [" + (en ? "Open original audio" : "Originalaudio öffnen") + "](" + sourceLink + ")"] : []),
+    ...(sourceDestination ? ["- [" + (en ? "Open original audio" : "Originalaudio öffnen") + "](" + sourceDestination + ")"] : []),
     ...publicLinks,
   ];
   const technicalMarker = options.technicalExpanded ? "+" : "-";
@@ -627,6 +688,15 @@ export function renderAudiobookRecord(
     "year: " + JSON.stringify(record.year),
     "categories: [" + record.category.map((value) => JSON.stringify(value)).join(", ") + "]",
     "cover: " + JSON.stringify(record.cover),
+    "description: " + JSON.stringify(record.description || ""),
+    "rating: " + (record.rating || 0),
+    "ratingsCount: " + (record.ratingsCount || 0),
+    "reviews: " + JSON.stringify(record.reviews || []),
+    "enrichmentSource: " + JSON.stringify(record.enrichmentSource || ""),
+    "enrichmentState: " + JSON.stringify(record.enrichmentState || ""),
+    "sourceRatings: " + JSON.stringify(record.sourceRatings || []),
+    "sourceDescriptions: " + JSON.stringify(record.sourceDescriptions || []),
+    "externalIdentities: " + JSON.stringify(record.externalIdentities || []),
     "---",
     "",
     "# " + record.title,
@@ -637,6 +707,9 @@ export function renderAudiobookRecord(
     "",
     cover,
     "",
+    ...renderAudiobookRatings(record, en),
+    ...renderAudiobookDescription(record, en),
+    ...renderAudiobookReviews(record, en),
     ...synopsis,
     ...(related.length > 0
       ? ["## " + (en ? "Related books" : "Ähnliche Bücher"), "", ...related, ""]
@@ -656,6 +729,50 @@ export function renderAudiobookRecord(
     ...technicalLines,
     "",
   ].join("\n");
+}
+
+function renderAudiobookRatings(record: AudiobookRecord, en: boolean): string[] {
+  const ratings = record.sourceRatings?.length
+    ? record.sourceRatings
+    : record.rating && record.rating > 0
+      ? [{ source: record.enrichmentSource || "unknown", url: "", locale: record.language, checkedAt: "", matchConfidence: 0, value: record.rating, count: record.ratingsCount || 0, status: "provider-reported" as const }]
+      : [];
+  if (!ratings.length) return [];
+  return [
+    `## ${en ? "Ratings" : "Bewertungen"}`,
+    "",
+    ...ratings.map((value) => {
+      const destination = markdownLinkDestination(value.url);
+      const label = escapeMarkdownText(publicSourceLabel(value.source));
+      return `- ${ratingStars(value.value)} ${value.value.toFixed(1)}/5 · ${value.count || 0}${destination ? ` · [${label}](${destination})` : ` · ${label}`}`;
+    }),
+    "",
+  ];
+}
+
+function renderAudiobookDescription(record: AudiobookRecord, en: boolean): string[] {
+  const sourced = record.sourceDescriptions?.find((item) => item.kind === "source" && item.text)
+    || record.sourceDescriptions?.find((item) => item.text);
+  const description = normalizeDisplayText(sourced?.text || record.description);
+  if (!description) return [];
+  return [
+    `## ${en ? "Description" : "Beschreibung"}`,
+    "",
+    escapeMarkdownText(description),
+    ...(markdownLinkDestination(sourced?.url || "") ? ["", `${en ? "Source" : "Quelle"}: [${escapeMarkdownText(publicSourceLabel(sourced?.source || ""))}](${markdownLinkDestination(sourced?.url || "")})`] : []),
+    "",
+  ];
+}
+
+function renderAudiobookReviews(record: AudiobookRecord, en: boolean): string[] {
+  const reviews = (record.reviews || []).filter((review) => normalizeDisplayText(review.text)).slice(0, 3);
+  if (!reviews.length) return [];
+  return [
+    `## ${en ? "Reviews" : "Rezensionen"}`,
+    "",
+    ...reviews.map((review) => `> ${review.rating ? `${ratingStars(review.rating)} ` : ""}${escapeMarkdownText(review.text)}\n>\n> ${escapeMarkdownText(review.author) || (en ? "Unknown" : "Unbekannt")} · ${escapeMarkdownText(publicSourceLabel(review.source))}`),
+    "",
+  ];
 }
 
 function audiobookCatalogFileName(record: AudiobookRecord): string {
@@ -680,7 +797,29 @@ function formatBytes(bytes: number): string {
 
 function publicSourceLabel(source: string): string {
   try { return new URL(source).hostname.replace(/^www\./, ""); }
-  catch { return "Öffentliche Quelle"; }
+  catch { return normalizeDisplayText(source) || "Öffentliche Quelle"; }
+}
+
+function markdownLinkDestination(value: string): string {
+  try {
+    const url = new URL(value);
+    if ((url.protocol !== "http:" && url.protocol !== "https:") || url.username || url.password) return "";
+    return url.toString().replace(/[()<>]/g, (character) => encodeURIComponent(character));
+  } catch {
+    return "";
+  }
+}
+
+function escapeMarkdownText(value: string): string {
+  return normalizeDisplayText(value)
+    .replace(/\\/g, "\\\\")
+    .replace(/([`*_[\]<>|])/g, "\\$1")
+    .replace(/^([#>-])/, "\\$1");
+}
+
+function safeCoverFilename(value: string): string {
+  const fileName = path.posix.basename((value || "").replace(/\\/g, "/"));
+  return /^[\p{L}\p{N}._ -]+\.(?:jpe?g|png|webp|gif)$/iu.test(fileName) ? fileName : "";
 }
 
 function readString(value: unknown): string | null {
@@ -694,6 +833,15 @@ function readStringArray(value: unknown): string[] | null {
 
 function readNumber(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : 0;
+}
+
+function readReviews(value: unknown): BookReview[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((entry): entry is BookReview => {
+    if (!entry || typeof entry !== "object") return false;
+    const review = entry as Record<string, unknown>;
+    return typeof review.source === "string" && typeof review.author === "string" && typeof review.text === "string" && typeof review.rating === "number";
+  });
 }
 
 function extractYear(title: string): string {

@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { describe, expect, it } from "vitest";
-import { buildAudiobookIndex, buildLocalAudiobookIndex, normalizeAudiobookIndex, normalizeAudiobookRecord, parseStorageAudioFacts, renderAudiobookRecord, upsertManualAudiobook, writeAudiobookCatalog } from "../src/audiobooks";
+import { buildAudiobookIndex, buildLocalAudiobookIndex, normalizeAudiobookIndex, normalizeAudiobookRecord, parseStorageAudioFacts, renderAudiobookRecord, upsertManualAudiobook, writeAudiobookCatalog, type AudiobookEnrichmentFile } from "../src/audiobooks";
 import type { BookIndex } from "../src/types";
 
 const books: BookIndex = {
@@ -33,7 +33,7 @@ const rawInventory = [
   "----    1        23456 2026-08-21T00:00:01 disc-01.mp3",
 ].join("\n");
 
-const enrichments = {
+const enrichments: AudiobookEnrichmentFile = {
   items: [
     {
       storagePath: "Audio/Audiobooks/How to Think About AI.m4b",
@@ -47,6 +47,15 @@ const enrichments = {
       category: ["Audiobooks", "AI & Technologie"],
       synopsis: "Eine lokal belegte Synopsis.",
       synopsisSource: "Private provider-sidecar metadata",
+      description: "Eine ausführliche Hörbuchbeschreibung.",
+      rating: 4.4,
+      ratingsCount: 128,
+      reviews: [{ source: "audible", author: "Reader", rating: 5, text: "Sehr gut gesprochen." }],
+      sourceRatings: [{ source: "audible", url: "https://audible.example/rating", locale: "de-DE", checkedAt: "2026-08-21", matchConfidence: 1, value: 4.4, count: 128, status: "provider-reported" }],
+      sourceDescriptions: [{ source: "audible", url: "https://audible.example/description", locale: "de-DE", checkedAt: "2026-08-21", matchConfidence: 1, text: "Eine ausführliche Hörbuchbeschreibung.", kind: "source" }],
+      externalIdentities: [{ source: "audible", url: "https://audible.example/a", locale: "de-DE", checkedAt: "2026-08-21", matchConfidence: 1, editionId: "aud-1" }],
+      enrichmentSource: "audible",
+      enrichmentState: "success",
       sourceMetadataFiles: ["Audio/Audiobooks/How to Think About AI.m4b/metadata.json"],
       localBookSources: ["local-book-epub:bookhash"],
       publicMetadataSources: ["https://openlibrary.org/works/OL123W"],
@@ -70,7 +79,16 @@ describe("audiobook catalog", () => {
     expect(index.entries["audio-1"].synopsisStatus).toBe("verified");
     expect(index.entries["audio-1"].sourceMetadataFiles).toEqual(["Audio/Audiobooks/How to Think About AI.m4b/metadata.json"]);
     expect(index.entries["audio-1"].localBookSources).toEqual(["local-book-epub:bookhash"]);
-    expect(index.entries["audio-1"].publicMetadataSources).toEqual(["https://openlibrary.org/works/OL123W"]);
+    expect(index.entries["audio-1"].publicMetadataSources).toEqual(expect.arrayContaining([
+      "https://openlibrary.org/works/OL123W",
+      "https://audible.example/rating",
+      "https://audible.example/description",
+      "https://audible.example/a",
+    ]));
+    expect(index.entries["audio-1"].description).toBe("Eine ausführliche Hörbuchbeschreibung.");
+    expect(index.entries["audio-1"].rating).toBe(4.4);
+    expect(index.entries["audio-1"].ratingsCount).toBe(128);
+    expect(index.entries["audio-1"].reviews?.[0].text).toBe("Sehr gut gesprochen.");
     expect(index.entries["audio-1"].relatedBooks).toEqual(["bookhash"]);
     expect(index.entries["audio-2"].category).toContain("Serien");
     expect(index.entries["audio-2"].legacyPublicLink).toBeNull();
@@ -88,6 +106,10 @@ describe("audiobook catalog", () => {
     expect(note).toContain("_catalog/How to Think About AI — Verified Author");
     expect(note).not.toContain("id: " + index.entries["audio-1"].id);
     expect(note).toContain("Eine lokal belegte Synopsis.");
+    expect(note).toContain("Eine ausführliche Hörbuchbeschreibung.");
+    expect(note).toContain("★★★★");
+    expect(note).toContain("## Rezensionen");
+    expect(note).toContain("Sehr gut gesprochen.");
     expect(note).toContain("Private provider-sidecar metadata");
     expect(note).toContain("Lokale Buchquelle:** local-book-epub:bookhash");
     expect(note).toContain("[openlibrary.org](https://openlibrary.org/works/OL123W)");
@@ -120,6 +142,23 @@ describe("audiobook catalog", () => {
     expect(note).toContain("> [!info]- Technische Details");
     expect(note).not.toContain("<details");
     expect(note).not.toContain("## Medienfakten");
+  });
+
+  it("keeps provider metadata from injecting Markdown links or embeds", () => {
+    const index = buildAudiobookIndex({ catalogDir: "_audiobooks", inventoryReadback: "notes/inventory.txt", staging, matches, books, rawInventory, enrichments });
+    const note = renderAudiobookRecord({
+      ...index.entries["audio-1"],
+      cover: "evil.jpg|999",
+      description: "# injected [link]",
+      sourceDescriptions: [],
+      publicMetadataSources: ["javascript:alert(1)"],
+      sourceRatings: [{ source: "unsafe", url: "javascript:alert(1)", locale: "", checkedAt: "", matchConfidence: 1, value: 5, count: 1, status: "provider-reported" }],
+      reviews: [{ source: "unsafe", author: "[Author]", rating: 5, text: "[Click](javascript:alert(1))" }],
+    }, {});
+    expect(note).not.toContain("![[covers/evil");
+    expect(note).not.toContain("[unsafe](javascript:");
+    expect(note).toContain("\\# injected \\[link\\]");
+    expect(note).toContain("\\[Click\\](javascript:alert(1))");
   });
 
   it("normalizes legacy indexes into neutral source fields without losing links", () => {
@@ -215,6 +254,22 @@ describe("audiobook catalog", () => {
     expect(record.sourceProvider).toBe("local");
     expect(record.audioFileCount).toBe(2);
     expect(record.catalogPath).toContain("_audiobooks/Clean Architecture — Robert C. Martin.md");
+
+    record.metadataStatus = "enriched-public-metadata";
+    record.matchStatus = "matched";
+    record.relatedBooks = ["book-hash"];
+    record.description = "Sourced description";
+    record.rating = 4.5;
+    record.cover = "audiobook-cover.jpg";
+    const rescanned = buildLocalAudiobookIndex({
+      libraryPath: path.join(root, "Audiobooks"),
+      catalogDir: "_audiobooks",
+      previousIndex: index,
+    });
+    const preserved = Object.values(rescanned.entries)[0];
+    expect(preserved.metadataStatus).toBe("enriched-public-metadata");
+    expect(preserved.matchStatus).toBe("matched");
+    expect(preserved.relatedBooks).toEqual(["book-hash"]);
   });
 
   it("creates a stable manual entry with a neutral storage link", () => {

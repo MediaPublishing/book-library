@@ -1,6 +1,6 @@
 {
   "name": "book-library",
-  "version": "0.7.6",
+  "version": "0.7.7",
   "description": "Obsidian plugin for a local-first book and audiobook library with covers, metadata, source links, Markdown conversion and optional AI topic wikis.",
   "type": "module",
   "main": "main.js",

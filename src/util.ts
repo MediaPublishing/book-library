@@ -5,6 +5,16 @@ export function sha256(data: Buffer | string): string {
   return createHash("sha256").update(data).digest("hex");
 }
 
+export function mergeByKey<T>(existing: T[], incoming: T[], key: (value: T) => string): T[] {
+  const merged = new Map(existing.map((value) => [key(value), value]));
+  for (const value of incoming) merged.set(key(value), value);
+  return [...merged.values()];
+}
+
+export function uniqueNormalizedStrings(values: string[]): string[] {
+  return [...new Set(values.map(normalizeDisplayText).filter(Boolean))];
+}
+
 export function slugify(value: string): string {
   return value
     .normalize("NFKD")

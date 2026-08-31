@@ -1,5 +1,5 @@
 import { App, Modal } from "obsidian";
-import type { AudiobookRecord, BookRecord } from "./types";
+import type { AudiobookRecord, BookExternalIdentity, BookRecord, BookReview, BookSourceDescription, BookSourceRating } from "./types";
 import { colorForString, formatBytes, humanizeSource, initials, isValidHttpUrl, normalizeDisplayText, ratingStars, slugify } from "./util";
 import { amazonSearchDestination } from "./marketplace";
 import type { TranslationKey } from "./i18n";
@@ -23,9 +23,9 @@ interface MediaDetailDependencies {
 export function shouldRenderPublicReviews(
   detailMode: "product" | "minimal" | undefined,
   reviewsEnabled: boolean | undefined,
-  audiobook: boolean
+  _audiobook: boolean
 ): boolean {
-  return !audiobook && detailMode !== "minimal" && reviewsEnabled === true;
+  return detailMode !== "minimal" && reviewsEnabled === true;
 }
 
 export type DetailSection = "glance" | "why-read" | "reviews" | "related" | "technical";
@@ -39,14 +39,68 @@ export interface DetailRatingPresentation {
   unavailable: boolean;
 }
 
-export function detailRatingPresentations(record: BookRecord): DetailRatingPresentation[] {
+export interface DetailMetadataRecord {
+  title: string;
+  author: string;
+  language: string;
+  isbn?: string;
+  summary?: string;
+  description?: string;
+  rating?: number;
+  ratingsCount?: number;
+  categories?: string[];
+  themes?: string[];
+  reviews?: BookReview[];
+  enrichmentSource?: string;
+  source?: string;
+  sourceRatings?: BookSourceRating[];
+  sourceDescriptions?: BookSourceDescription[];
+  externalIdentities?: BookExternalIdentity[];
+}
+
+export function resolveAudiobookDetailRecord(
+  audiobook: AudiobookRecord,
+  matchedBook?: BookRecord
+): DetailMetadataRecord {
+  const audioCategories = (audiobook.category || []).filter((category) => category && category !== "Audiobooks");
+  return {
+    title: audiobook.title,
+    author: audiobook.author,
+    language: audiobook.language || matchedBook?.language || "",
+    isbn: matchedBook?.isbn || "",
+    summary: audiobook.synopsis || matchedBook?.summary || "",
+    description: audiobook.description || matchedBook?.description || "",
+    rating: audiobook.rating || matchedBook?.rating,
+    ratingsCount: audiobook.rating ? audiobook.ratingsCount || 0 : matchedBook?.ratingsCount,
+    categories: audioCategories.length ? audioCategories : matchedBook?.categories || [],
+    themes: matchedBook?.themes || [],
+    reviews: audiobook.reviews?.length ? audiobook.reviews : matchedBook?.reviews || [],
+    enrichmentSource: audiobook.enrichmentSource || matchedBook?.enrichmentSource,
+    source: audiobook.sourceProvider || matchedBook?.source || "local",
+    sourceRatings: audiobook.sourceRatings?.length
+      ? audiobook.sourceRatings
+      : audiobook.rating
+        ? []
+        : matchedBook?.sourceRatings || [],
+    sourceDescriptions: audiobook.sourceDescriptions?.length
+      ? audiobook.sourceDescriptions
+      : audiobook.description
+        ? []
+        : matchedBook?.sourceDescriptions || [],
+    externalIdentities: audiobook.externalIdentities?.length
+      ? audiobook.externalIdentities
+      : matchedBook?.externalIdentities || [],
+  };
+}
+
+export function detailRatingPresentations(record: DetailMetadataRecord): DetailRatingPresentation[] {
   const ratings = record.sourceRatings?.length
     ? record.sourceRatings.map((rating) => ({ ...rating, unavailable: false }))
     : record.rating
       ? [{
         value: record.rating,
         count: record.ratingsCount || 0,
-        source: record.enrichmentSource || record.source,
+        source: record.enrichmentSource || record.source || "local",
         status: "provider-reported" as const,
         url: "",
         unavailable: false,
@@ -77,6 +131,7 @@ export class MediaDetailModal extends Modal {
   private deps: MediaDetailDependencies;
   private previousActiveElement: HTMLElement | null = null;
   private restoreFocusOnClose = true;
+  private detailRecordCache: DetailMetadataRecord | null = null;
 
   constructor(app: App, media: BookRecord | AudiobookRecord, deps: MediaDetailDependencies) {
     super(app);
@@ -92,6 +147,10 @@ export class MediaDetailModal extends Modal {
     const author = normalizeDisplayText(this.media.author) || this.t("view.unknownAuthor");
     const { contentEl } = this;
     const productMode = this.deps.detailMode !== "minimal";
+    const matchedBook = audiobook ? this.matchedBookFor(audioRecord) : undefined;
+    this.detailRecordCache = audiobook
+      ? resolveAudiobookDetailRecord(audioRecord, matchedBook)
+      : bookRecord;
     this.previousActiveElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     contentEl.empty();
     contentEl.addClass("book-library-modal");
@@ -117,7 +176,7 @@ export class MediaDetailModal extends Modal {
     }
     const titleBox = header.createDiv({ cls: "book-library-modal-title-box" });
     titleBox.createEl("h2", { text: title, cls: "book-library-modal-title" });
-    const authorProfileBook = audiobook ? this.matchedBookFor(audioRecord) : bookRecord;
+    const authorProfileBook = audiobook ? matchedBook : bookRecord;
     if (authorProfileBook && this.deps.openAuthor && normalizeDisplayText(this.media.author)) {
       const authorButton = titleBox.createEl("button", { text: author, cls: "book-library-modal-author is-button" });
       authorButton.addEventListener("click", () => this.finish(() => this.deps.openAuthor?.(authorProfileBook)));
@@ -142,12 +201,7 @@ export class MediaDetailModal extends Modal {
       synopsisBox.createEl("h3", { text: this.t("catalog.synopsis") });
       synopsisBox.createDiv({ text: synopsis, cls: "book-library-modal-synopsis-text" });
     }
-    if (!audiobook) {
-      this.renderDescription(body, bookRecord);
-    } else {
-      const matchedBook = this.matchedBookFor(audioRecord);
-      if (matchedBook) this.renderDescription(body, matchedBook, synopsis);
-    }
+    this.renderDescription(body, this.detailRecord(audiobook), synopsis);
 
     for (const section of detailSectionOrder(productMode)) {
       switch (section) {
@@ -188,6 +242,7 @@ export class MediaDetailModal extends Modal {
     if (this.restoreFocusOnClose) this.previousActiveElement?.focus();
     this.previousActiveElement = null;
     this.restoreFocusOnClose = true;
+    this.detailRecordCache = null;
   }
 
   private renderTechnical(parent: HTMLElement, audiobook: boolean): void {
@@ -233,12 +288,9 @@ export class MediaDetailModal extends Modal {
   }
 
   private renderRatingAndCategories(parent: HTMLElement, audiobook: boolean): void {
-    const audioRecord = audiobook ? this.media as AudiobookRecord : null;
-    const record = audioRecord ? this.matchedBookFor(audioRecord) : this.media as BookRecord;
-    const ratings = record ? detailRatingPresentations(record) : [];
-    const categories = audioRecord
-      ? audioRecord.category.filter((category) => category && category !== "Audiobooks")
-      : (record?.categories || []).filter(Boolean);
+    const record = this.detailRecord(audiobook);
+    const ratings = detailRatingPresentations(record);
+    const categories = (record.categories || []).filter(Boolean);
     if (ratings.length === 0 && categories.length === 0) return;
 
     const strip = parent.createDiv({ cls: "book-library-modal-rating" });
@@ -271,7 +323,7 @@ export class MediaDetailModal extends Modal {
     }
   }
 
-  private renderDescription(parent: HTMLElement, record: BookRecord, compareText = record.summary): void {
+  private renderDescription(parent: HTMLElement, record: DetailMetadataRecord, compareText = record.summary || ""): void {
     const sourced = record.sourceDescriptions?.find((entry) => entry.kind === "source" && entry.text)
       || record.sourceDescriptions?.find((entry) => entry.text);
     const description = normalizeDisplayText(sourced?.text || record.description || "");
@@ -310,23 +362,21 @@ export class MediaDetailModal extends Modal {
   private renderWhyRead(parent: HTMLElement, audiobook: boolean, productMode: boolean): void {
     if (!productMode) return;
     const audioRecord = audiobook ? this.media as AudiobookRecord : null;
-    const record = audioRecord ? this.matchedBookFor(audioRecord) : this.media as BookRecord;
-    const themes = (record?.themes || []).filter(Boolean);
-    const categories = record
-      ? (record.categories || []).filter(Boolean)
-      : (audioRecord?.category || []).filter((category) => category && category !== "Audiobooks");
+    const record = this.detailRecord(audiobook);
+    const themes = (record.themes || []).filter(Boolean);
+    const categories = (record.categories || []).filter(Boolean);
     const reasons = themes.length ? themes : categories;
     const reasonSource = reasons.length
-      ? record?.sourceDescriptions?.find((entry) => entry.text)?.source
-        || record?.enrichmentSource
-        || record?.source
+      ? record.sourceDescriptions?.find((entry) => entry.text)?.source
+        || record.enrichmentSource
+        || record.source
         || audioRecord?.sourceProvider
         || "local"
       : audiobook
         ? audioRecord?.synopsisSource || audioRecord?.sourceProvider || "local"
-        : record?.sourceDescriptions?.find((entry) => entry.text)?.source
-          || record?.enrichmentSource
-          || record?.source
+        : record.sourceDescriptions?.find((entry) => entry.text)?.source
+          || record.enrichmentSource
+          || record.source
           || "local";
     const box = parent.createDiv({ cls: "book-library-modal-why" });
     box.createEl("h3", { text: this.t(audiobook ? "view.whyListen" : "view.whyRead") });
@@ -337,7 +387,7 @@ export class MediaDetailModal extends Modal {
           ? (audioRecord?.synopsis
             ? this.t("view.whyListenFromSynopsis")
             : this.t("view.whyListenUnavailable"))
-          : (record?.description || record?.summary
+          : (record.description || record.summary
             ? this.t("view.whyReadFromDescription")
             : this.t("view.whyReadUnavailable")),
       cls: "book-library-modal-why-text",
@@ -353,7 +403,7 @@ export class MediaDetailModal extends Modal {
 
   private renderReviews(parent: HTMLElement, audiobook: boolean, productMode: boolean): void {
     if (!shouldRenderPublicReviews(productMode ? "product" : "minimal", this.deps.reviewsEnabled, audiobook)) return;
-    const record = this.media as BookRecord;
+    const record = this.detailRecord(audiobook);
     const reviews = (record.reviews || []).slice(0, 3);
     if (reviews.length === 0) return;
     const box = parent.createDiv({ cls: "book-library-modal-reviews" });
@@ -469,6 +519,13 @@ export class MediaDetailModal extends Modal {
       if (match) return match;
     }
     return undefined;
+  }
+
+  private detailRecord(audiobook: boolean): DetailMetadataRecord {
+    if (this.detailRecordCache) return this.detailRecordCache;
+    if (!audiobook) return this.media as BookRecord;
+    const audioRecord = this.media as AudiobookRecord;
+    return resolveAudiobookDetailRecord(audioRecord, this.matchedBookFor(audioRecord));
   }
 
   private audiobookTopicLabel(record: AudiobookRecord, link: string): string {

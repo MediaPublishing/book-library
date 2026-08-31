@@ -31,7 +31,8 @@ Book Library verwandelt lokale EPUB-, PDF- und Audiobook-Ordner in eine durchsuc
 
 - Inkrementeller Scan für EPUB- und PDF-Dateien.
 - Lokaler Audiobook-Index für M4A, M4B, MP3, FLAC, OGG, Opus, WAV und AAC.
-- Einheitliche Oberfläche für Bücher und Audiobooks.
+- Einheitliche Detailansicht für Bücher und Audiobooks mit Cover, Beschreibung, Ratings und belegten Rezensionen.
+- Automatische Audiobook-Anreicherung über öffentliche Buchquellen; vorhandene lokale Daten haben Vorrang.
 - Lesbare Katalognotizen statt Hash-Dateinamen.
 - Covers aus eingebetteten Dateien, Open Library oder Google Books.
 - EPUB-zu-Markdown-Konvertierung.
@@ -42,7 +43,7 @@ Book Library verwandelt lokale EPUB-, PDF- und Audiobook-Ordner in eine durchsuc
 
 ### Installation
 
-1. Lade [Book Library 0.7.6](https://obsidian-book-library.pages.dev/download/book-library-0.7.6.zip) herunter.
+1. Lade [Book Library 0.7.7](https://obsidian-book-library.pages.dev/download/book-library-0.7.7.zip) herunter.
 2. Entpacke das ZIP.
 3. Kopiere `main.js`, `manifest.json` und `styles.css` nach:
 
@@ -77,7 +78,8 @@ Book Library turns local EPUB, PDF and audiobook folders into a searchable Obsid
 
 - Incremental scanning for EPUB and PDF files.
 - Local audiobook index for M4A, M4B, MP3, FLAC, OGG, Opus, WAV and AAC.
-- One consistent interface for books and audiobooks.
+- One consistent detail view for books and audiobooks, including cover, description, ratings and sourced reviews.
+- Automatic audiobook enrichment through public book sources; existing local data takes precedence.
 - Readable catalog notes instead of hash filenames.
 - Covers from embedded files, Open Library or Google Books.
 - EPUB-to-Markdown conversion.
@@ -88,7 +90,7 @@ Book Library turns local EPUB, PDF and audiobook folders into a searchable Obsid
 
 ### Installation
 
-1. Download [Book Library 0.7.6](https://obsidian-book-library.pages.dev/download/book-library-0.7.6.zip).
+1. Download [Book Library 0.7.7](https://obsidian-book-library.pages.dev/download/book-library-0.7.7.zip).
 2. Unzip the archive.
 3. Copy `main.js`, `manifest.json` and `styles.css` to:
 
@@ -128,5 +130,5 @@ Die CI führt dieselben Prüfungen bei jedem Push und Pull Request aus. Ein `v*`
 
 CI runs the same checks on every push and pull request. A `v*` tag starts the release pipeline and publishes the matching ZIP with checksums.
 
-Aktuelle Version / Current release: **0.7.6**<br>
+Aktuelle Version / Current release: **0.7.7**<br>
 Lizenz / License: **MIT**

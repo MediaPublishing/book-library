@@ -152,6 +152,24 @@ export interface AudiobookRecord {
   synopsis: string;
   synopsisStatus: AudiobookSynopsisStatus;
   synopsisSource: string;
+  /** Vollständige Beschreibung aus einer öffentlichen Quelle, sofern verfügbar. */
+  description?: string;
+  /** Aggregierte Bewertung 0–5; 0/undefined bedeutet „unbekannt“. */
+  rating?: number;
+  /** Anzahl öffentlicher Bewertungen. */
+  ratingsCount?: number;
+  /** Quellengestützte, importierte Rezensionen; niemals automatisch erfunden. */
+  reviews?: BookReview[];
+  /** Quellengetrennte Audiobook-Bewertungen. */
+  sourceRatings?: BookSourceRating[];
+  /** Quellengetrennte Beschreibungen oder klar markierte AI-Zusammenfassungen. */
+  sourceDescriptions?: BookSourceDescription[];
+  /** Aufgelöste Werk-/Ausgaben-Identitäten öffentlicher Anbieter. */
+  externalIdentities?: BookExternalIdentity[];
+  /** Anbieter, aus denen die Anreicherung stammt. */
+  enrichmentSource?: string;
+  /** Zustand des letzten Anreicherungsversuchs. */
+  enrichmentState?: EnrichmentState;
   sourceMetadataFiles: string[];
   localBookSources: string[];
   sourceStatus: "verified-storage-path" | "verified-local-path" | "manual";

@@ -273,12 +273,17 @@ describe("metadata provider", () => {
   });
 
   it("lehnt Fehlerseiten ab, die nur als Bilddatei benannt sind", async () => {
-    const provider = new MetadataProvider(async () => ({
-      status: 200,
-      text: "<Error><Code>AccessDenied</Code></Error>",
-      arrayBuffer: Buffer.from("<Error><Code>AccessDenied</Code></Error>").buffer,
-    }));
+    let called = false;
+    const provider = new MetadataProvider(async () => {
+      called = true;
+      return {
+        status: 200,
+        text: "<Error><Code>AccessDenied</Code></Error>",
+        arrayBuffer: Buffer.from("<Error><Code>AccessDenied</Code></Error>").buffer,
+      };
+    });
     expect(await provider.downloadCover("https://covers.example.invalid/not-a-cover.jpg")).toBeNull();
+    expect(called).toBe(false);
   });
 
   it("liest Covers aus dem cover-Objekt der Open-Library-ISBN-Antwort", async () => {

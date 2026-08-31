@@ -35,6 +35,7 @@ import {
   upsertManualAudiobook,
   writeAudiobookCatalog,
 } from "./audiobooks";
+import { enrichAudiobooks, type AudiobookEnrichmentProvider } from "./audiobook-enrichment";
 import { ManualAudiobookModal } from "./manual-audiobook-modal";
 import { normalizeLibraryUiState } from "./library-ui-state";
 import { catalogFileName, catalogLinkTarget, renderCatalogRecord } from "./catalog";
@@ -621,6 +622,36 @@ export default class BookLibrary extends Plugin {
         catalogDir,
         previousIndex: this.audiobookIndex,
       });
+      if (this.settings.fetchMetadata) {
+        const metadataProvider = new MetadataProvider((url) =>
+          withTimeout(requestUrl({ url, throw: false }), 15_000).then((res) => ({
+            status: res.status,
+            text: res.text,
+            arrayBuffer: res.arrayBuffer,
+          }))
+        );
+        const provider: AudiobookEnrichmentProvider = {
+          fetchByTitleAuthor: async (title, author, language) => {
+            const fetched = await metadataProvider.fetchByTitleAuthor(title, author, language);
+            return fetched ? {
+              ...fetched,
+              publicMetadataSources: fetched.sourceUrl ? [fetched.sourceUrl] : [],
+            } : null;
+          },
+          downloadCover: (metadata) => metadata.coverUrl
+            ? metadataProvider.downloadCover(metadata.coverUrl)
+            : null,
+        };
+        const enriched = await enrichAudiobooks(
+          Object.values(this.audiobookIndex.entries),
+          provider,
+          {
+            maxRecords: this.settings.maxBooksPerRun,
+            coversDir: this.resolveVaultPath(path.posix.join(catalogDir, "covers")),
+          }
+        );
+        this.audiobookIndex.entries = Object.fromEntries(enriched.map((record) => [record.id, record]));
+      }
       writeAudiobookCatalog(
         this.audiobookIndex,
         this.resolveVaultPath(catalogDir),
@@ -1354,4 +1385,14 @@ export default class BookLibrary extends Plugin {
   async saveSettings(): Promise<void> {
     await this.saveData(this.settings);
   }
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = window.setTimeout(() => reject(new Error("Metadata request timed out")), timeoutMs);
+    promise.then(
+      (value) => { window.clearTimeout(timer); resolve(value); },
+      (error) => { window.clearTimeout(timer); reject(error); },
+    );
+  });
 }

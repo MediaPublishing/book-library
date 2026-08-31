@@ -41,6 +41,8 @@ export type HttpGet = (url: string) => Promise<{ status: number; text: string; a
 
 export type RasterImageExtension = "jpg" | "png" | "webp" | "gif";
 
+const MAX_COVER_BYTES = 10 * 1024 * 1024;
+
 type MetadataTarget = {
   title?: string;
   author?: string;
@@ -80,18 +82,19 @@ export class MetadataProvider {
   }
 
   async downloadCover(url: string): Promise<Buffer | null> {
-    if (!url) return null;
-    const res = await this.http(url);
+    const trustedUrl = trustedBookCoverUrl(url);
+    if (!trustedUrl) return null;
+    const res = await this.http(trustedUrl);
     if (res.status !== 200) return null;
     if (res.arrayBuffer) {
       const bytes = Buffer.from(res.arrayBuffer);
-      return rasterImageExtension(bytes) ? bytes : null;
+      return bytes.length <= MAX_COVER_BYTES && rasterImageExtension(bytes) ? bytes : null;
     }
     const comma = res.text.indexOf(",");
     if (comma > 0) {
       const bytes = Uint8Array.from(atob(res.text.slice(comma + 1)), (c) => c.charCodeAt(0));
       const cover = Buffer.from(bytes);
-      return rasterImageExtension(cover) ? cover : null;
+      return cover.length <= MAX_COVER_BYTES && rasterImageExtension(cover) ? cover : null;
     }
     return null;
   }
@@ -302,6 +305,22 @@ export class MetadataProvider {
         editionId: clean(item.id) || undefined, isbn: clean(industryId?.identifier) || undefined,
       }] : [],
     };
+  }
+}
+
+export function trustedBookCoverUrl(value: string): string | null {
+  try {
+    const url = new URL(value);
+    const host = url.hostname.toLocaleLowerCase();
+    const trustedHost = host === "covers.openlibrary.org"
+      || host === "books.google.com"
+      || host === "books.googleusercontent.com"
+      || host.endsWith(".googleusercontent.com");
+    if (!trustedHost || (url.protocol !== "https:" && url.protocol !== "http:") || url.username || url.password) return null;
+    url.protocol = "https:";
+    return url.toString();
+  } catch {
+    return null;
   }
 }
 
