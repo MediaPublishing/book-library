@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Book Library — Obsidian books &amp; audiobooks</title>
+  <meta name="description" content="Book Library turns local EPUB, PDF and audiobook folders into a searchable Obsidian library with covers, synopses, source links and optional AI workflows. English and German.">
+  <link rel="canonical" href="https://obsidian-book-library.pages.dev/">
+  <meta name="theme-color" content="#0b0e18">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Book Library">
+  <meta property="og:title" content="Book Library — Obsidian books &amp; audiobooks">
+  <meta property="og:description" content="Turn local EPUB, PDF and audiobook folders into a searchable Obsidian library with covers, synopses, source links and optional AI workflows.">
+  <meta property="og:url" content="https://obsidian-book-library.pages.dev/">
+  <meta property="og:image" content="https://obsidian-book-library.pages.dev/assets/library-books.png">
+  <meta property="og:image:width" content="1158">
+  <meta property="og:image:height" content="971">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Book Library — Obsidian books &amp; audiobooks">
+  <meta name="twitter:description" content="Turn local EPUB, PDF and audiobook folders into a searchable Obsidian library with covers, synopses, source links and optional AI workflows.">
+  <meta name="twitter:image" content="https://obsidian-book-library.pages.dev/assets/library-books.png">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="manifest" href="webmanifest.json">
+  <style>
+    :root{--bg:#0b0e18;--panel:#12172a;--line:rgba(151,141,255,.21);--text:#f5f2ff;--muted:#b9b1dc;--accent:#7c5cff;--accent-2:#22d3ee;--ok:#4ade80;--radius:14px}
+    *{box-sizing:border-box}html{scroll-behavior:smooth}img,svg,video{max-width:100%}
+    body{margin:0;background:radial-gradient(700px 420px at 8% -8%,rgba(124,92,255,.28),transparent),radial-gradient(760px 500px at 100% 0%,rgba(34,211,238,.13),transparent),var(--bg);color:var(--text);font:16px/1.55 Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif}
+    a{color:inherit}.wrap{width:min(1120px,calc(100% - 40px));margin:auto}
+    header{position:sticky;top:0;z-index:20;background:rgba(11,14,24,.86);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,.07)}
+    .nav{min-height:70px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+    .brand{display:flex;align-items:center;gap:10px;font-weight:750;text-decoration:none;font-size:1.05rem}.brand img{width:32px;height:32px;border-radius:8px}
+    .nav-links{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+    .nav-link{text-decoration:none;color:var(--muted);padding:8px 10px;border-radius:8px;font-size:.92rem}.nav-link:hover{background:rgba(255,255,255,.06);color:white}
+    .lang{display:flex;padding:3px;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.04)}.lang button{border:0;background:none;color:var(--muted);padding:5px 9px;border-radius:6px;font-weight:700;cursor:pointer}.lang button.active{background:var(--accent);color:white}
+    .button{display:inline-flex;align-items:center;gap:8px;padding:12px 17px;border-radius:10px;border:1px solid var(--line);text-decoration:none;font-weight:700;background:rgba(255,255,255,.05);transition:border-color 150ms ease,background-color 150ms ease,transform 150ms ease}
+    .button:hover{border-color:rgba(196,181,253,.55);background:rgba(255,255,255,.09);transform:translateY(-1px)}.button:focus-visible{outline:2px solid var(--accent);outline-offset:3px}.button svg{width:19px;height:19px;flex:0 0 auto}
+    .primary{background:linear-gradient(135deg,var(--accent),#5841d6);border-color:transparent;color:white;box-shadow:0 12px 26px rgba(124,92,255,.25)}
+    .hero{display:grid;grid-template-columns:1.08fr .92fr;gap:36px;align-items:center;padding:68px 0 48px}
+    h1,h2,h3{line-height:1.1;letter-spacing:-.01em;margin:0}h1{font-size:clamp(2.35rem,5vw,4rem);margin:14px 0}h2{font-size:clamp(1.65rem,2.6vw,2.3rem)}h3{font-size:1.15rem}
+    p{color:var(--muted);margin:0}.eyebrow{color:#c4b5fd;text-transform:uppercase;font-weight:800;letter-spacing:.09em;font-size:.75rem}
+    .lede{font-size:1.08rem;margin-top:14px;max-width:56ch}
+    .actions{display:flex;flex-wrap:wrap;gap:11px;margin-top:22px}.note{font-size:.86rem;margin-top:10px;color:#a49bc7}
+    .app-preview{min-width:0;border:1px solid var(--line);border-radius:18px;background:var(--panel);box-shadow:0 30px 70px rgba(0,0,0,.45);overflow:hidden}.bar{height:38px;display:flex;align-items:center;gap:7px;padding:0 13px;border-bottom:1px solid rgba(255,255,255,.08)}.dot{width:10px;height:10px;border-radius:50%}.dot-red{background:#ff5f57}.dot-yellow{background:#febc2e}.dot-green{background:#28c840}
+    .preview-tabs{display:flex;gap:8px;padding:12px;border-bottom:1px solid rgba(255,255,255,.07);align-items:center}.preview-tabs .preview-chip{border:0;background:rgba(255,255,255,.06);color:inherit;font-weight:700;padding:7px 12px;border-radius:7px;cursor:pointer;font-size:.84rem}.preview-tabs .preview-chip.active{background:var(--accent);color:white}
+    .preview-frame{position:relative;padding:14px;background:#0d1120}.preview-frame img{display:block;width:100%;height:auto;border-radius:8px;border:1px solid rgba(255,255,255,.08)}
+    .preview-meta{padding:10px 14px 12px;color:#a49bc7;font-size:.76rem;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+    section{padding:54px 0;border-top:1px solid rgba(255,255,255,.06)}.section-head{max-width:64ch;margin-bottom:26px}
+    .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.card{min-width:0;background:rgba(255,255,255,.035);border:1px solid var(--line);border-radius:var(--radius);padding:19px}.icon{width:37px;height:37px;border-radius:9px;background:rgba(124,92,255,.17);display:grid;place-items:center;margin-bottom:13px;color:#ddd6fe;font-weight:850}.card p{font-size:.94rem;margin-top:7px}
+    ol.steps{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.step{min-width:0;border:1px solid var(--line);border-radius:var(--radius);padding:20px;background:rgba(255,255,255,.03)}.step-num{width:30px;height:30px;border-radius:50%;background:var(--accent);display:grid;place-items:center;font-weight:850;color:white;margin-bottom:13px}
+    details{min-width:0;border:1px solid var(--line);border-radius:10px;margin-bottom:10px;background:rgba(255,255,255,.03)}summary{cursor:pointer;padding:15px;font-weight:650;outline:none}pre.prompt{white-space:pre-wrap;overflow-x:auto;overflow-wrap:anywhere;word-break:break-word;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.82rem;color:#d8d3f1;padding:0 15px 15px}.prompt-actions{display:flex;justify-content:flex-end;padding:0 15px 15px}button.copy{border:1px solid var(--line);background:rgba(255,255,255,.06);color:white;padding:6px 10px;border-radius:7px;cursor:pointer;font-size:.78rem}
+    .privacy-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.footer{padding:35px 0;border-top:1px solid rgba(255,255,255,.07);color:#a49bc7;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:.87rem}
+    [data-lang]{display:none}[data-lang].show{display:block}section [data-lang].show{display:contents}
+    .prompt-library{max-width:880px;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:rgba(250,248,255,.022)}
+    details.prompt-sheet{min-width:0;border:0;border-radius:0;margin-bottom:0;background:transparent}
+    details.prompt-sheet+.prompt-sheet{border-top:1px solid var(--line)}
+    details.prompt-sheet summary{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;align-items:center;gap:12px;min-height:58px;padding:14px 18px;list-style:none;transition:background-color 160ms cubic-bezier(0.17,0.84,0.44,1)}
+    details.prompt-sheet summary::-webkit-details-marker{display:none}
+    details.prompt-sheet summary:hover{background:rgba(255,255,255,.03)}
+    details.prompt-sheet summary:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+    .prompt-index{color:#a49bc7;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.75rem;font-weight:700}
+    .prompt-title{min-width:0;color:var(--text);font-size:1rem;font-weight:680;line-height:1.3}
+    .prompt-kind{color:var(--muted);font-size:.78rem;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap}
+    details.prompt-sheet .prompt-indicator{position:relative;width:22px;height:22px;border:1px solid var(--line);border-radius:50%}
+    details.prompt-sheet .prompt-indicator:before,details.prompt-sheet .prompt-indicator:after{content:"";position:absolute;top:50%;left:50%;width:9px;height:1.5px;background:var(--muted);transform:translate(-50%,-50%);transition:transform 180ms cubic-bezier(0.17,0.84,0.44,1)}
+    details.prompt-sheet .prompt-indicator:after{transform:translate(-50%,-50%) rotate(90deg)}
+    details.prompt-sheet[open] .prompt-indicator:after{transform:translate(-50%,-50%) rotate(0)}
+    .prompt-content{padding:2px 18px 18px}
+    .prompt-purpose{max-width:68ch;margin:0 0 12px;color:var(--muted);font-size:.92rem}
+    pre.prompt{max-width:76ch;margin:0;padding:16px 0 0;border:0;background:transparent;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;color:#cdc7e8;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.83rem;line-height:1.68}
+    pre.prompt code{padding:1px 5px;border-radius:4px;background:rgba(124,92,255,.11);color:#ddd4ff;font:inherit}
+    pre.prompt[data-lang].show{display:block}
+    .prompt-actions{justify-content:flex-end;padding:14px 0 0}
+    button.copy{min-width:82px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--text);padding:7px 10px;border-radius:7px;cursor:pointer;font-size:.79rem;font-weight:650;transition:border-color 150ms ease,background-color 150ms ease}
+    button.copy:hover,button.copy:focus-visible{border-color:rgba(124,92,255,.55);background:rgba(124,92,255,.10)}
+    button.copy:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+    .cards.install-cards{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .install-steps{list-style:none;padding:0;margin:18px 0 0;display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+    .install-step{min-width:0;border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.03);padding:14px 16px;font-size:.9rem;color:var(--muted)}
+    .install-step b{display:block;color:var(--text);margin-bottom:6px;font-size:1rem}
+    .install-actions{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:18px}
+    .install-actions .button{min-height:48px}
+    @media(max-width:900px){.hero,.cards,.privacy-grid,ol.steps{grid-template-columns:1fr}.grid{grid-template-columns:repeat(2,1fr)}.wrap{width:min(680px,calc(100% - 30px))}}
+    @media(max-width:700px){.nav{flex-direction:column;align-items:center;gap:10px;padding:14px 0}.brand{justify-content:center}.nav-links{justify-content:center}.prompt-index{display:none}details.prompt-sheet summary{grid-template-columns:minmax(0,1fr) auto;gap:8px}.prompt-kind{display:none}.install-steps{grid-template-columns:1fr;gap:8px}.install-step{display:grid;grid-template-columns:28px minmax(0,1fr);align-items:start;gap:10px;padding:10px 12px}.install-step b{margin:0;line-height:1.35}.install-actions{gap:10px}}
+  </style>
+</head>
+<body>
+<header><div class="wrap nav"><a class="brand" href="./"><img src="logo.svg" alt=""> Book Library</a><div class="nav-links"><div class="lang"><button type="button" data-lang-button="en" class="active">EN</button><button type="button" data-lang-button="de">DE</button></div><a class="nav-link" href="#workflow" data-i18n="navWorkflow">Workflow</a><a class="nav-link" href="#prompts" data-i18n="navPrompts">Prompts</a><a class="button primary" href="#install" data-i18n="installNow">Install now</a></div></div></header>
+
+<main class="wrap">
+  <div class="hero">
+    <div>
+      <div class="en show" data-lang="en"><span class="eyebrow">Obsidian plugin · Local-first</span><h1>Your books and audiobooks, finally connected.</h1><p class="lede">Scan a folder once. Get readable notes, covers, synopses, source links and related topics in Obsidian—without uploading your library.</p></div>
+      <div class="de" data-lang="de"><span class="eyebrow">Obsidian-Plugin · Local-first</span><h1>Deine Bücher und Audiobooks, endlich vernetzt.</h1><p class="lede">Scanne einen Ordner einmal und erhalte lesbare Notizen, Covers, Synopsen, Ablage-Links und verwandte Themen in Obsidian, ohne deine Bibliothek hochzuladen.</p></div>
+      <div class="actions"><a class="button primary" href="#install" data-i18n="installNow">Install now</a><a class="button" href="#prompts" data-i18n="seePrompts">Prompt library</a><a class="button" href="https://github.com/MediaPublishing/book-library" target="_blank" rel="noopener noreferrer"><svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1C5.923 1 1 5.923 1 12c0 4.867 3.149 8.979 7.521 10.436.55.096.756-.233.756-.522 0-.262-.013-1.128-.013-2.049-2.764.509-3.479-.674-3.699-1.292-.124-.317-.66-1.293-1.127-1.554-.385-.207-.936-.715-.014-.729.866-.014 1.485.797 1.691 1.128.99 1.663 2.571 1.196 3.204.907.096-.715.385-1.196.701-1.471-2.447-.275-5.005-1.224-5.005-5.432 0-1.197.412-2.186 1.1-2.956-.11-.275-.481-1.403.11-2.915 0 0 .894-.275 3.025 1.128A10.2 10.2 0 0 1 12 6.32c.935 0 1.87.124 2.75.371 2.131-1.416 3.025-1.128 3.025-1.128.591 1.512.22 2.64.11 2.915.688.77 1.1 1.773 1.1 2.956 0 4.222-2.571 5.157-5.019 5.432.399.344.743 1.004.743 2.035 0 1.471-.014 2.654-.014 3.025 0 .289.206.632.756.522C19.851 20.979 23 16.853 23 12c0-6.077-4.922-11-11-11Z"/></svg><span>GitHub</span></a></div>
+      <p class="note en show" data-lang="en">Manual install · English &amp; German · Obsidian desktop.</p><p class="de" data-lang="de">Manuelle Installation · Deutsch &amp; Englisch · Obsidian Desktop.</p>
+    </div>
+    <div class="app-preview"><div class="bar"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div><div class="preview-tabs"><button type="button" class="preview-chip active" data-preview-tab="books">Books</button><button type="button" class="preview-chip" data-preview-tab="audiobooks">Audiobooks</button></div><div class="preview-frame"><picture><source type="image/webp" srcset="assets/library-books.webp"><img class="preview-screenshot" src="assets/library-books.png" alt="Book Library books grid" width="1158" height="971" fetchpriority="high" decoding="async"></picture></div></div>
+  </div>
+
+  <section id="workflow"><div class="section-head"><div class="en" data-lang="en"><h2>A setup project, not another spreadsheet</h2><p>Book Library treats indexing as a guided project: scan, review, enrich, then maintain incrementally.</p></div><div class="de" data-lang="de"><h2>Ein Indexierprojekt statt einer weiteren Tabelle</h2><p>Book Library behandelt Indexierung als geführtes Projekt: scannen, prüfen, anreichern und dann inkrementell pflegen.</p></div></div>
+    <ol class="steps">
+      <li class="step"><div class="step-num">1</div><div class="en" data-lang="en"><h3>Connect folders</h3><p>Point to EPUB/PDF and audiobook folders outside or inside your vault. Media never moves.</p></div><div class="de" data-lang="de"><h3>Ordner verbinden</h3><p>Verbinde EPUB/PDF- und Audiobook-Ordner im oder außerhalb des Vaults. Mediendateien bleiben dort.</p></div></li>
+      <li class="step"><div class="step-num">2</div><div class="en" data-lang="en"><h3>Index and review</h3><p>Create readable catalog notes with titles/authors, embedded metadata and free cover lookup.</p></div><div class="de" data-lang="de"><h3>Indexieren und prüfen</h3><p>Erstelle lesbare Katalognotizen mit Titel/Autor, eingebetteten Metadaten und freier Cover-Suche.</p></div></li>
+      <li class="step"><div class="step-num">3</div><div class="en" data-lang="en"><h3>Enrich safely</h3><p>Add synopses, topic links, Markdown and optional AI covers only after you approve cost and provider.</p></div><div class="de" data-lang="de"><h3>Sicher anreichern</h3><p>Ergänze Synopsen, Themenlinks, Markdown und optionale AI-Covers erst nach Kosten-/Provider-Freigabe.</p></div></li>
+    </ol>
+  </section>
+
+  <section><div class="section-head"><div class="en" data-lang="en"><h2>Built for real libraries</h2></div><div class="de" data-lang="de"><h2>Für echte Bibliotheken gebaut</h2></div></div><div class="cards">
+      <article class="card"><div class="icon">B</div><div class="en" data-lang="en"><h3>Books &amp; audiobooks</h3><p>One interface for both media types, with formats, size, narrator/duration fields where available and separate catalogs.</p></div><div class="de" data-lang="de"><h3>Bücher &amp; Audiobooks</h3><p>Eine Oberfläche für beide Medientypen mit Formaten, Größe, Sprecher/Dauer wo verfügbar und getrennten Katalogen.</p></div></article>
+      <article class="card"><div class="icon">L</div><div class="en" data-lang="en"><h3>Any storage location</h3><p>Local path, public URL, cloud folder or private hosted service. The label is generic: “Storage”, not a vendor name.</p></div><div class="de" data-lang="de"><h3>Jeder Ablageort</h3><p>Lokaler Pfad, öffentliche URL, Cloud-Ordner oder privater Dienst. Das Label bleibt neutral: „Ablageort“.</p></div></article>
+      <article class="card"><div class="icon">T</div><div class="en" data-lang="en"><h3>Related topics</h3><p>Tags, authors, categories and book matches become Obsidian links and topic maps instead of isolated records.</p></div><div class="de" data-lang="de"><h3>Verwandte Themen</h3><p>Tags, Autoren, Kategorien und Buchmatches werden zu Obsidian-Links und Topic Maps statt isolierter Einträge.</p></div></article>
+      <article class="card"><div class="icon">C</div><div class="en" data-lang="en"><h3>Covers that stay readable</h3><p>Use embedded art, Open Library, Google Books or batched image generation. Technical IDs stay out of filenames and headings.</p></div><div class="de" data-lang="de"><h3>Lesbare Covers</h3><p>Nutze eingebettete Covers, Open Library, Google Books oder Batch-Bildgenerierung. Technische IDs bleiben aus Titeln und Dateinamen raus.</p></div></article>
+      <article class="card"><div class="icon">W</div><div class="en" data-lang="en"><h3>Token-aware wiki</h3><p>Convert selected EPUBs to Markdown, chunk them with limits and generate concept pages through your preferred AI harness.</p></div><div class="de" data-lang="de"><h3>Token-effizientes Wiki</h3><p>Konvertiere ausgewählte EPUBs, chunked mit Limits, und erzeuge Konzeptseiten über deinen bevorzugten AI-Harness.</p></div></article>
+      <article class="card"><div class="icon">D</div><div class="en" data-lang="en"><h3>Clean detail view</h3><p>Synopsis appears directly under the cover. Rare technical fields stay behind a collapsible section by default.</p></div><div class="de" data-lang="de"><h3>Aufgeräumte Detailansicht</h3><p>Synopsis erscheint direkt unter dem Cover; seltene technische Felder bleiben standardmäßig eingeklappt.</p></div></article>
+    </div>
+  </section>
+
+  <section id="prompts"><div class="section-head"><div class="en" data-lang="en"><h2>Prompt library</h2><p>Use these templates with ChatGPT Work, Claude Code or a local agent. Replace placeholders and keep uncertain results in review.</p></div><div class="de" data-lang="de"><h2>Prompt-Bibliothek</h2><p>Nutze diese Vorlagen mit ChatGPT Work, Claude Code oder einem lokalen Agenten. Ersetze Platzhalter und markiere unsichere Ergebnisse zur Prüfung.</p></div></div>
+    <div class="prompt-library">
+    <details class="prompt-sheet" open><summary><span class="prompt-index">01</span><span class="prompt-title" data-i18n="promptInstallPlugin">Install plugin</span><span class="prompt-kind en show" data-lang="en">Setup</span><span class="prompt-kind de" data-lang="de">Setup</span><span class="prompt-indicator" aria-hidden="true"></span></summary><div class="prompt-content"><p class="prompt-purpose"><span class="en show" data-lang="en">Let Codex or Claude install and configure the plugin from the ZIP.</span><span class="de" data-lang="de">Codex oder Claude installiert und konfiguriert das Plugin aus dem ZIP.</span></p><pre class="prompt en show" data-lang="en">Install the Book Library Obsidian plugin:
+1. Download the ZIP from <code>{{zip_url}}</code> into the vault.
+2. Unzip it and verify <code>main.js</code>, <code>manifest.json</code> and <code>styles.css</code>.
+3. Copy the three files into <code>.obsidian/plugins/book-library/</code>.
+4. Enable Book Library in Obsidian and confirm the plugin tab appears.
+Do not change catalog notes, indexes or user media during install.</pre>
+            <pre class="prompt de" data-lang="de">Installiere das Book-Library-Obsidian-Plugin:
+1. Lade das ZIP aus <code>{{zip_url}}</code> in den Vault.
+2. Entpacke es und prüfe <code>main.js</code>, <code>manifest.json</code> und <code>styles.css</code>.
+3. Kopiere die drei Dateien nach <code>.obsidian/plugins/book-library/</code>.
+4. Aktiviere Book Library in Obsidian und bestätige, dass der Plugin-Tab erscheint.
+Ändere während der Installation keine Katalognotizen, Indizes oder Nutzermedien.</pre><div class="prompt-actions"><button type="button" class="copy" data-i18n="copy">Copy</button></div></div></details>
+    <details class="prompt-sheet"><summary><span class="prompt-index">02</span><span class="prompt-title" data-i18n="promptMetadataReview">Metadata review</span><span class="prompt-kind en show" data-lang="en">Validation</span><span class="prompt-kind de" data-lang="de">Prüfung</span><span class="prompt-indicator" aria-hidden="true"></span></summary><div class="prompt-content"><p class="prompt-purpose"><span class="en show" data-lang="en">Confirm catalog facts without inventing values.</span><span class="de" data-lang="de">Katalogfakten bestätigen, ohne Werte zu erfinden.</span></p><pre class="prompt en show" data-lang="en">Review this catalog entry only against the supplied sources.
+Title: <code>{{title}}</code>
+Author: <code>{{author}}</code>
+Filename: <code>{{file}}</code>
+Embedded metadata: <code>{{embedded_metadata}}</code>
+Provider candidates: <code>{{candidates}}</code>
+
+Return confirmed title, confirmed author, uncertainties,
+source per field and confidence high|medium|low.
+Never invent values. Mark uncertainty as needs-review.</pre>
+            <pre class="prompt de" data-lang="de">Prüfe diesen Katalogeintrag ausschließlich gegen die gelieferten Quellen.
+Titel: <code>{{title}}</code>
+Autor: <code>{{author}}</code>
+Dateiname: <code>{{file}}</code>
+Eingebettete Metadaten: <code>{{embedded_metadata}}</code>
+Anbieterkandidaten: <code>{{candidates}}</code>
+
+Gib den bestätigten Titel, die bestätigte Autorin oder den bestätigten Autor,
+Unsicherheiten, die Quelle je Feld und die Konfidenz high|medium|low zurück.
+Erfinde keine Werte. Markiere Unsicherheit als needs-review.</pre><div class="prompt-actions"><button type="button" class="copy" data-i18n="copy">Copy</button></div></div></details>
+    <details class="prompt-sheet"><summary><span class="prompt-index">03</span><span class="prompt-title" data-i18n="promptSynopsis">Synopsis enrichment</span><span class="prompt-kind en show" data-lang="en">Writing</span><span class="prompt-kind de" data-lang="de">Text</span><span class="prompt-indicator" aria-hidden="true"></span></summary><div class="prompt-content"><p class="prompt-purpose"><span class="en show" data-lang="en">Draft only what the supplied source supports.</span><span class="de" data-lang="de">Nur schreiben, was die gelieferte Quelle belegt.</span></p><pre class="prompt en show" data-lang="en">Write a synopsis of at most <code>{{max_words}}</code> words.
+Use only the supplied book text or the cited source below.
+Separate confirmed facts from uncertainty.
+If no sufficient source exists, return exactly:
+"No source-backed synopsis available."
+
+Title: <code>{{title}}</code>
+Author: <code>{{author}}</code>
+Source/text: <code>{{source_or_text}}</code></pre>
+            <pre class="prompt de" data-lang="de">Schreibe eine Synopsis mit maximal <code>{{max_words}}</code> Wörtern.
+Verwende ausschließlich den gelieferten Buchtext oder die unten genannte Quelle.
+Trenne bestätigte Fakten von Unsicherheiten.
+Wenn keine ausreichende Quelle existiert, gib exakt zurück:
+"No source-backed synopsis available."
+
+Titel: <code>{{title}}</code>
+Autor: <code>{{author}}</code>
+Quelle/Text: <code>{{source_or_text}}</code></pre><div class="prompt-actions"><button type="button" class="copy" data-i18n="copy">Copy</button></div></div></details>
+    <details class="prompt-sheet"><summary><span class="prompt-index">04</span><span class="prompt-title" data-i18n="promptRelatedTopics">Related topics</span><span class="prompt-kind en show" data-lang="en">Linking</span><span class="prompt-kind de" data-lang="de">Verknüpfung</span><span class="prompt-indicator" aria-hidden="true"></span></summary><div class="prompt-content"><p class="prompt-purpose"><span class="en show" data-lang="en">Create conservative topic links with evidence.</span><span class="de" data-lang="de">Konservative Themenlinks mit Belegen erstellen.</span></p><pre class="prompt en show" data-lang="en">Suggest at most five non-duplicate topic links.
+Base each suggestion on the title, author, tags or synopsis.
+Return topic, one-line reason and confidence.
+Do not create synonyms or unsupported themes.
+
+Existing topics: <code>{{existing_topics}}</code></pre>
+            <pre class="prompt de" data-lang="de">Schlage maximal fünf nicht doppelte Themenlinks vor.
+Begründe jeden Vorschlag mit Titel, Autor, Tags oder Synopsis.
+Gib Thema, Ein-Satz-Begründung und Konfidenz zurück.
+Erzeuge keine Synonyme oder nicht belegte Themen.
+
+Vorhandene Themen: <code>{{existing_topics}}</code></pre><div class="prompt-actions"><button type="button" class="copy" data-i18n="copy">Copy</button></div></div></details>
+    <details class="prompt-sheet"><summary><span class="prompt-index">05</span><span class="prompt-title" data-i18n="promptCoverSheet">AI cover sheet (16)</span><span class="prompt-kind en show" data-lang="en">Covers</span><span class="prompt-kind de" data-lang="de">Covers</span><span class="prompt-indicator" aria-hidden="true"></span></summary><div class="prompt-content"><p class="prompt-purpose"><span class="en show" data-lang="en">Generate a clean four-by-four sheet for slicing.</span><span class="de" data-lang="de">Ein sauberes 4×4-Sheet zum Schneiden erzeugen.</span></p><pre class="prompt en show" data-lang="en">Create one original portrait book-cover sheet divided into a 4x4 grid
+with clear equal gutters and no bleed between tiles.
+Each tile must contain exactly:
+TITLE: <code>{{title}}</code>
+AUTHOR: <code>{{author}}</code>
+THEME: <code>{{genre_or_topic}}</code>
+
+No logos, watermarks, quotes, invented names or extra text.
+Keep typography large enough to read after slicing.</pre>
+            <pre class="prompt de" data-lang="de">Erstelle ein originäres hochformatiges Buchcover-Sheet mit einem 4x4-Raster,
+klaren gleichmäßigen Abständen und keinem Überlappen der Kacheln.
+Jede Kachel muss exakt enthalten:
+TITEL: <code>{{title}}</code>
+AUTOR: <code>{{author}}</code>
+THEMA: <code>{{genre_or_topic}}</code>
+
+Keine Logos, Wasserzeichen, Zitate, erfundenen Namen oder zusätzlichen Texte.
+Halte die Typografie groß genug, um sie nach dem Zuschneiden lesen zu können.</pre><div class="prompt-actions"><button type="button" class="copy" data-i18n="copy">Copy</button></div></div></details>
+    <details class="prompt-sheet"><summary><span class="prompt-index">06</span><span class="prompt-title" data-i18n="promptAudiobookStorage">Audiobook storage enrichment</span><span class="prompt-kind en show" data-lang="en">Enrichment</span><span class="prompt-kind de" data-lang="de">Anreicherung</span><span class="prompt-indicator" aria-hidden="true"></span></summary><div class="prompt-content"><p class="prompt-purpose"><span class="en show" data-lang="en">Preserve storage facts and cite every added value.</span><span class="de" data-lang="de">Ablagefakten erhalten und jeden Zusatz belegen.</span></p><pre class="prompt en show" data-lang="en">Enrich these audiobook entries without uploading media.
+For each item return title, author, narrator if known,
+duration if known, language, year, category and synopsis status.
+Use only provided metadata or a cited public source.
+Preserve the original storage link/path unchanged.
+Mark missing facts as unavailable, not guessed.</pre>
+            <pre class="prompt de" data-lang="de">Reichere diese Audiobook-Einträge an, ohne Medien hochzuladen.
+Gib für jeden Eintrag Titel, Autor, Sprecher falls bekannt,
+Dauer falls bekannt, Sprache, Jahr, Kategorie und Synopsis-Status zurück.
+Verwende ausschließlich gelieferte Metadaten oder eine belegte öffentliche Quelle.
+Behalte den ursprünglichen Speicherlink/Pfad unverändert bei.
+Markiere fehlende Fakten als „Nicht verfügbar“, nicht als geraten.</pre><div class="prompt-actions"><button type="button" class="copy" data-i18n="copy">Copy</button></div></div></details>
+    </div>
+  </section>
+
+<section id="install"><div class="section-head"><div class="en" data-lang="en"><h2>Install in under a minute</h2><p>Install manually or let Codex or Claude set it up for you. Obsidian desktop is required for opening local files and folder scans.</p></div><div class="de" data-lang="de"><h2>In unter einer Minute installiert</h2><p>Manuell installieren oder von Codex oder Claude einrichten lassen. Obsidian Desktop wird für lokale Dateien und Ordnerscans benötigt.</p></div></div><div class="install-actions"><a class="button primary" href="download/book-library-0.7.6.zip" download data-i18n="installCta">Install now</a><p class="en" data-lang="en">v0.7.6 · ZIP · English &amp; German</p><p class="de" data-lang="de">v0.7.6 · ZIP · Deutsch &amp; Englisch</p></div><div class="install-steps">
+      <div class="install-step"><b>1</b><span class="en" data-lang="en">Tell Codex or Claude in your vault: “Install the Book Library plugin from the ZIP and configure it.”</span><span class="de" data-lang="de">Sag Codex oder Claude in deinem Vault: „Installiere das Book-Library-Plugin aus dem ZIP und konfiguriere es.“</span></div>
+      <div class="install-step"><b>2</b><span class="en" data-lang="en">Or download the ZIP, unzip it and copy <code>main.js</code>, <code>manifest.json</code> and <code>styles.css</code> into <code>.obsidian/plugins/book-library/</code>.</span><span class="de" data-lang="de">Oder ZIP herunterladen, entpacken und <code>main.js</code>, <code>manifest.json</code> sowie <code>styles.css</code> nach <code>.obsidian/plugins/book-library/</code> kopieren.</span></div>
+      <div class="install-step"><b>3</b><span class="en" data-lang="en">Enable Book Library in Obsidian and scan your folders.</span><span class="de" data-lang="de">Book Library in Obsidian aktivieren und Ordner scannen.</span></div>
+    </div>
+  </section>
+</main>
+
+<footer><div class="wrap footer"><span>© 2026 Book Library</span></div></footer>
+
+<script>
+const buttons=[...document.querySelectorAll("[data-lang-button]")];
+const labels={
+  en:{
+    navWorkflow:"Workflow",navPrompts:"Prompts",installNow:"Install now",installCta:"Install now",seePrompts:"Prompt library",
+    promptMetadataReview:"Metadata review",promptSynopsis:"Synopsis enrichment",promptRelatedTopics:"Related topics",
+    promptCoverSheet:"AI cover sheet (16)",promptAudiobookStorage:"Audiobook storage enrichment",promptInstallPlugin:"Install plugin",
+    copy:"Copy",copied:"Copied",pageTitle:"Book Library — Obsidian books & audiobooks",
+    pageDescription:"Turn local EPUB, PDF and audiobook folders into a searchable Obsidian library.",
+    previewBooks:"Book Library books grid",previewAudiobooks:"Book Library audiobooks grid"
+  },
+  de:{
+    navWorkflow:"Workflow",navPrompts:"Prompts",installNow:"Jetzt installieren",installCta:"Jetzt installieren",seePrompts:"Prompt-Bibliothek",
+    promptMetadataReview:"Metadaten-Prüfung",promptSynopsis:"Synopsis anreichern",promptRelatedTopics:"Verwandte Themen",
+    promptCoverSheet:"AI-Cover-Sheet (16)",promptAudiobookStorage:"Audiobook-Ablage anreichern",promptInstallPlugin:"Plugin installieren",
+    copy:"Kopieren",copied:"Kopiert",pageTitle:"Book Library — Obsidian-Bücher & Audiobooks",
+    pageDescription:"Verwandle lokale EPUB-, PDF- und Audiobook-Ordner in eine durchsuchbare Obsidian-Bibliothek.",
+    previewBooks:"Book-Library-Buchraster",previewAudiobooks:"Book-Library-Audiobook-Raster"
+  }
+};
+function setLang(lang){
+  const text=labels[lang]||labels.en;
+  buttons.forEach((button)=>button.classList.toggle("active",button.dataset.langButton===lang));
+  buttons.forEach((button)=>button.setAttribute("aria-pressed",String(button.dataset.langButton===lang)));
+  document.querySelectorAll("[data-lang]").forEach((element)=>element.classList.toggle("show",element.dataset.lang===lang));
+  for(const [key,value] of Object.entries(text)) {
+    document.querySelectorAll(`[data-i18n="${key}"]`).forEach((element)=>element.textContent=value);
+  }
+  document.title=text.pageTitle;
+  document.querySelector('meta[name="description"]').setAttribute("content",text.pageDescription);
+  document.querySelector(".preview-screenshot").alt=text.previewBooks;
+  document.documentElement.lang=lang;
+}
+const previewChips=[...document.querySelectorAll("[data-preview-tab]")];
+previewChips.forEach((chip)=>chip.addEventListener("click",()=>{
+  previewChips.forEach((c)=>c.classList.toggle("active",c===chip));
+  previewChips.forEach((c)=>c.setAttribute("aria-pressed",String(c===chip)));
+  const tab=chip.dataset.previewTab;
+  const frame=document.querySelector(".preview-frame");
+  const image=frame.querySelector(".preview-screenshot");
+  const audio=tab==="audiobooks";
+  frame.querySelector("source").srcset=audio?"assets/library-audiobooks.webp":"assets/library-books.webp";
+  image.src=audio?"assets/library-audiobooks.png":"assets/library-books.png";
+  image.width=audio?1158:1158;
+  image.height=audio?966:971;
+  image.alt=document.documentElement.lang==="de"?labels.de[audio?"previewAudiobooks":"previewBooks"]:labels.en[audio?"previewAudiobooks":"previewBooks"];
+}));
+previewChips.forEach((chip)=>chip.setAttribute("aria-pressed",String(chip.classList.contains("active"))));
+buttons.forEach((button)=>button.addEventListener("click",()=>setLang(button.dataset.langButton)));
+document.querySelectorAll(".copy").forEach((button)=>{
+  button.addEventListener("click",async()=>{
+    const text=button.closest("details").querySelector(".prompt.show").textContent.trim();
+    if(navigator.clipboard&&window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      const area=document.createElement("textarea");
+      area.value=text;
+      area.setAttribute("readonly","");
+      area.style.position="fixed";
+      area.style.opacity="0";
+      document.body.appendChild(area);
+      area.select();
+      document.execCommand("copy");
+      area.remove();
+    }
+    button.textContent=labels[document.documentElement.lang]?.copied||labels.en.copied;
+    setTimeout(()=>{button.textContent=labels[document.documentElement.lang]?.copy||labels.en.copy;},1200);
+  });
+});
+let initialLanguage="en";
+try {
+  initialLanguage=localStorage.getItem("book-library-language")||(navigator.language.toLowerCase().startsWith("de")?"de":"en");
+} catch {
+  initialLanguage=navigator.language.toLowerCase().startsWith("de")?"de":"en";
+}
+setLang(labels[initialLanguage]?initialLanguage:"en");
+buttons.forEach((button)=>button.addEventListener("click",()=>{
+  try {
+    localStorage.setItem("book-library-language",button.dataset.langButton);
+  } catch {}
+}));
+</script>
+</body>
+</html>

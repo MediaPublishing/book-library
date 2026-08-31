@@ -1,0 +1,39 @@
+{
+  "name": "book-library",
+  "version": "0.7.6",
+  "description": "Obsidian plugin for a local-first book and audiobook library with covers, metadata, source links, Markdown conversion and optional AI topic wikis.",
+  "type": "module",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+    "typecheck": "tsc -noEmit -skipLibCheck",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc -noEmit -skipLibCheck",
+    "import:audiobooks": "node scripts/import-audiobooks.mjs",
+    "repair:metadata": "node scripts/repair-metadata-encoding.mjs",
+    "deploy:landing": "npx wrangler pages deploy site --project-name obsidian-book-library --commit-dirty=true",
+    "package:release": "node scripts/package-release.mjs"
+  },
+  "keywords": [
+    "obsidian",
+    "books",
+    "epub",
+    "pdf",
+    "library",
+    "catalog",
+    "audiobooks"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "esbuild": "^0.24.0",
+    "obsidian": "^1.7.2",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
+  },
+  "dependencies": {
+    "jszip": "^3.10.1"
+  }
+}

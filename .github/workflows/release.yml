@@ -1,0 +1,53 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Verify tag and package version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          MANIFEST_VERSION=$(node -p "require('./manifest.json').version")
+          test "$VERSION" = "$MANIFEST_VERSION"
+          test "v$VERSION" = "$GITHUB_REF_NAME"
+      - run: npm ci
+      - run: npx --yes html-validate@9.7.1 site/index.html
+      - run: npm test -- --run
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npm run package:release
+      - run: git diff --exit-code -- site/download
+      - name: Create or update GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          VERSION="${TAG#v}"
+          ZIP="site/download/book-library-${VERSION}.zip"
+          CHECKSUMS="site/download/${VERSION}/SHA256SUMS.txt"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$ZIP" "$CHECKSUMS" --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$TAG" "$ZIP" "$CHECKSUMS" \
+              --verify-tag \
+              --generate-notes \
+              --title "Book Library $TAG" \
+              --repo "$GITHUB_REPOSITORY"
+          fi

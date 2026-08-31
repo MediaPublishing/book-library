@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Book Library">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4c1d95"/>
+      <stop offset="1" stop-color="#0e7490"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <path d="M128 144 C164 118 216 118 256 128 L256 384 C216 374 164 374 128 400 Z" fill="#f8fafc"/>
+  <path d="M384 144 C348 118 296 118 256 128 L256 384 C296 374 348 374 384 400 Z" fill="#e2e8f0"/>
+  <rect x="180" y="180" width="40" height="8" rx="4" fill="#94a3b8"/>
+  <rect x="180" y="204" width="72" height="8" rx="4" fill="#cbd5e1"/>
+  <rect x="180" y="228" width="56" height="8" rx="4" fill="#cbd5e1"/>
+  <rect x="252" y="180" width="40" height="8" rx="4" fill="#94a3b8"/>
+  <rect x="252" y="204" width="72" height="8" rx="4" fill="#cbd5e1"/>
+  <rect x="252" y="228" width="56" height="8" rx="4" fill="#cbd5e1"/>
+</svg>

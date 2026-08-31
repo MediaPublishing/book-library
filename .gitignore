@@ -1,0 +1,37 @@
+node_modules/
+/main.js
+/main.js.map
+*.map
+.DS_Store
+docs/goals/book-library-release/pricing-hypothesis.json.tmp
+.obsidian/
+coverage/
+fixtures/vault/.obsidian/plugins/book-library/onload.log
+fixtures/vault/_catalog/.book-library-index.json
+fixtures/vault/_catalog/.book-library-cache.json
+fixtures/vault/_catalog/covers/
+fixtures/vault/_catalog/[0-9a-f]*.md
+fixtures/vault/_audiobooks/
+fixtures/vault/_books/
+fixtures/vault/_wiki/
+artifacts/
+docs/goals/book-library-completion-gauntlet/notes/
+docs/goals/book-library-completion-gauntlet/receipts/*.jpg
+docs/goals/book-library-completion-gauntlet/receipts/*.png
+.env*
+
+# Local project operations and private release working files
+.gstack/
+/CLAUDE.md
+/RELEASE.md
+/distribution/
+/docs/goals/
+/plans/
+
+# Generated local-library fixture output
+fixtures/vault/_catalog/*.md
+!fixtures/vault/_catalog/example.md
+fixtures/vault/_catalog/*.bak
+fixtures/vault/_catalog/*.pre-*
+fixtures/vault/_catalog/.book-library-legacy-hash-notes/
+fixtures/vault/_catalog/.book-library-superseded-notes/

@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Book Library UI Preview</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #fafafa;
+      --panel: #ffffff;
+      --border: #d8d8d8;
+      --muted: #6b6b6b;
+      --accent: #5b5bd6;
+      --text: #1a1a1a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .app { max-width: 960px; margin: 24px auto; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+    .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+    input[type=search] { flex: 1; min-width: 180px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; }
+    button { border: 1px solid var(--border); background: #fff; padding: 8px 10px; border-radius: 6px; cursor: pointer; }
+    button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .stats { color: var(--muted); font-size: 13px; }
+    .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+    .card { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; cursor: pointer; }
+    .cover { aspect-ratio: 2 / 3; background: linear-gradient(135deg, #e8e8f8, #d6d6e6); display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 40px; }
+    .meta { padding: 8px; display: flex; flex-direction: column; gap: 2px; }
+    .title { font-weight: 600; font-size: 13px; line-height: 1.25; }
+    .author { color: var(--muted); font-size: 12px; }
+    .line { color: #9a9a9a; font-size: 11px; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="toolbar">
+      <input type="search" placeholder="Titel oder Autor suchen ..." value="">
+      <button>ALL</button>
+      <button>EPUB</button>
+      <button class="active">PDF</button>
+      <button>Scan</button>
+      <span class="stats">6 von 6 Büchern</span>
+    </div>
+    <div class="tags">
+      <button class="active">geschichte 2</button>
+      <button>02-sachbuch 2</button>
+      <button>ki 1</button>
+      <button>romane 1</button>
+      <button>produktivität 1</button>
+    </div>
+    <div class="grid">
+      <div class="card"><div class="cover">B</div><div class="meta"><div class="title">A history of smoking</div><div class="author">Egon Caesar Corti</div><div class="line">PDF 17,7 MB #geschichte</div></div></div>
+      <div class="card"><div class="cover">A</div><div class="meta"><div class="title">Against the Grain</div><div class="author">James C. Scott</div><div class="line">PDF 1,4 MB #geschichte</div></div></div>
+      <div class="card"><div class="cover">D</div><div class="meta"><div class="title">Das Tagebuch der Menschheit</div><div class="author">Carl von Schach</div><div class="line">EPUB 2,5 MB #geschichte</div></div></div>
+      <div class="card"><div class="cover">R</div><div class="meta"><div class="title">Der Brand</div><div class="author">Jörg Friedrich</div><div class="line">PDF 2,0 MB #geschichte</div></div></div>
+      <div class="card"><div class="cover">K</div><div class="meta"><div class="title">Künstliche Intelligenz kurz erklärt</div><div class="author">Unbekannt</div><div class="line">EPUB 0,8 MB #ki</div></div></div>
+      <div class="card"><div class="cover">T</div><div class="meta"><div class="title">Deep Work</div><div class="author">Cal Newport</div><div class="line">EPUB 1,1 MB #produktivität</div></div></div>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,21 @@
+{
+  "author": {
+    "name": "Michael Hudson",
+    "authorityId": "OL7467564A",
+    "officialSource": "https://michael-hudson.com/about/",
+    "amazonAuthorId": "B000APC58U"
+  },
+  "books": [
+    {
+      "title": "J Is for Junk Economics",
+      "amazonAsin": "B071W31MTM",
+      "amazonMarketplace": "amazon.com"
+    },
+    {
+      "title": "...and forgive them their debts",
+      "amazonAsin": null,
+      "amazonMarketplace": "amazon.com"
+    }
+  ],
+  "verifiedAt": "2026-08-29"
+}

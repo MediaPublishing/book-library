@@ -1,0 +1,10 @@
+{
+  "id": "book-library",
+  "name": "Book Library",
+  "version": "0.6.7",
+  "minAppVersion": "1.4.0",
+  "description": "Index books and audiobooks into a searchable Obsidian library with covers, synopses, source links, Markdown conversion and optional AI topic wikis. Local-first, English and German.",
+  "author": "Appsyl",
+  "authorUrl": "https://appsyl.com",
+  "isDesktopOnly": true
+}
