@@ -16,9 +16,22 @@ import { SetupWizardModal, classifyBookScanStatus, type SetupScanCallback, type 
 import { BookLibrarySettingTab } from "./settings";
 import { LibraryIndexer, normalizeBookRecord } from "./indexer";
 import { MetadataProvider } from "./metadata";
-import { computeRelatedBooks } from "./related";
+import {
+  buildRelatedBookSemanticIndex,
+  computeRelatedBooksForLibrary,
+  explainRelatedBooks,
+} from "./related";
 import { convertEpubToMarkdown } from "./conversion";
-import { AiPipeline, buildMetadataWiki, buildWikiIndex, hasMetadataWikiSource, type BudgetState } from "./ai";
+import {
+  AiPipeline,
+  buildMetadataWiki,
+  buildWikiIndex,
+  hasMetadataWikiSource,
+  readOptionalWikiMarkdown,
+  renderSafeWikiLink,
+  type BudgetState,
+  type WikiCrossReference,
+} from "./ai";
 import {
   AI_COVER_GRID,
   buildCoverSheetPrompt,
@@ -756,15 +769,32 @@ export default class BookLibrary extends Plugin {
     const wikiDir = this.resolveVaultPath(this.settings.wikiDir);
     const budget: BudgetState = { spentCents: 0, limitCents: this.settings.budgetCents };
     const pipeline = new AiPipeline(this.settings, wikiDir, budget, this.language);
+    const allBooks = this.getBooks();
+    const relatedSemanticIndex = buildRelatedBookSemanticIndex(allBooks);
     for (const book of candidates) {
       try {
+        const relatedMatches = explainRelatedBooks(book, allBooks, 6, relatedSemanticIndex);
+        const crossReferences: WikiCrossReference[] = relatedMatches
+          .map((match) => {
+            const related = this.getBookByHash(match.hash);
+            return related
+              ? {
+                target: catalogLinkTarget(catalogFileName(related), this.settings.catalogDir),
+                title: related.title,
+                reasons: match.reasons,
+              }
+              : null;
+          })
+          .filter((reference): reference is WikiCrossReference => reference !== null);
+        book.related = relatedMatches.map((match) => match.hash);
         const markdownPath = book.markdownPath
           ? resolveContainedPath(this.resolveVaultPath("."), book.markdownPath)
           : null;
-        const hasMarkdown = Boolean(markdownPath && fs.existsSync(markdownPath) && fs.readFileSync(markdownPath, "utf8").trim());
+        const markdownText = readOptionalWikiMarkdown(markdownPath);
+        const hasMarkdown = Boolean(markdownText.trim());
         const result = hasMarkdown
-          ? await pipeline.generateWiki(book, markdownPath!)
-          : buildMetadataWiki(book, this.settings.wikiDir, this.language, this.settings.reviewsEnabled);
+          ? await pipeline.generateWikiFromText(book, markdownText, crossReferences)
+          : buildMetadataWiki(book, this.settings.wikiDir, this.language, this.settings.reviewsEnabled, crossReferences);
         for (const page of result.pages) {
           const absolute = resolveContainedPath(this.resolveVaultPath("."), page.file);
           const relativeToWiki = absolute ? path.relative(wikiDir, absolute) : "..";
@@ -776,16 +806,10 @@ export default class BookLibrary extends Plugin {
             "",
             "---",
             "",
-            `- [[${catalogLinkTarget(catalogFileName(book), this.settings.catalogDir)}|Katalog: ${book.title}]]`,
-            ...book.related
-              .map((hash) => {
-                const related = this.getBookByHash(hash);
-                return related
-                  ? `- [[${catalogLinkTarget(catalogFileName(related), this.settings.catalogDir)}|${related.title}]]`
-                  : "";
-              })
-              .filter(Boolean)
-              .slice(0, 6),
+            `- ${renderSafeWikiLink(
+              catalogLinkTarget(catalogFileName(book), this.settings.catalogDir),
+              `Katalog: ${book.title}`,
+            )}`,
           ].join("\n");
           fs.writeFileSync(absolute, `${page.content.trim()}\n${footer}\n`, "utf8");
         }
@@ -1131,8 +1155,9 @@ export default class BookLibrary extends Plugin {
 
       const catalogDir = this.resolveVaultPath(this.settings.catalogDir);
       const books = this.getBooks();
+      const relatedByHash = computeRelatedBooksForLibrary(books);
       for (const book of books) {
-        const related = computeRelatedBooks(book, books);
+        const related = relatedByHash.get(book.hash) || [];
         if (JSON.stringify(related) !== JSON.stringify(book.related)) changed += 1;
         book.related = related;
       }

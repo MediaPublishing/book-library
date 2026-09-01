@@ -8,7 +8,7 @@ Reviews und Konvertierung sind sekundäre Modi, nie die Startfläche.
 
 ## View-Struktur
 
-- Toolbar: Suche, Format-Toggle (ALL/EPUB/PDF), Scan, Bibliothek öffnen,
+- Toolbar: lokale semantische Suche, Format-Toggle (ALL/EPUB/PDF), Scan, Bibliothek öffnen,
   Statistik.
 - Tag-Chips: häufige Tags mit Anzahl, einzeln filterbar.
 - Cover-Grid: Karten mit Cover, Titel, Autor, Format, Größe, Tags.
@@ -28,7 +28,8 @@ Reviews und Konvertierung sind sekundäre Modi, nie die Startfläche.
 - Metadata-first: Basis-Katalog braucht keine AI.
 - Hash-/mtime-Cache: keine Datei wird doppelt gelesen.
 - Chapter-Chunking mit Absatzgrenzen und Token-Schätzung.
-- Ergebnis-Cache je (Buch, Provider, Modell, Prompt-Version).
+- Ergebnis-Cache je (Buch, Provider, Modell, Sprache, Prompt-Version, geprüfte Querverweise).
+- Kontrollierte Wiki-Querverweise: genau ein Abschnitt auf der Wiki-Hauptseite mit höchstens sechs bestehenden Katalogzielen aus der lokalen, erklärbaren Kandidatenliste.
 - Queue mit `maxBooksPerRun` (Default 10), pausierbar über Neustart.
 - Budget-Cap in Cent, lokale Harnesses zuerst.
 

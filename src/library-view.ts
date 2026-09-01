@@ -10,8 +10,9 @@ import {
   type LibraryFormatFilter,
   type LibraryUiState,
 } from "./library-ui-state";
-import { colorForString, formatBytes, initials, normalizeDisplayText, sortAudiobooks, sortBooks, type SortKey } from "./util";
+import { colorForString, formatBytes, initials, normalizeDisplayText, type SortKey } from "./util";
 import type { AudiobookRecord, BookRecord } from "./types";
+import { prepareAudiobookLibraryResults, prepareBookLibraryResults } from "./library-search";
 
 export const BOOK_LIBRARY_VIEW = "book-library-view";
 
@@ -26,6 +27,8 @@ export class BookLibraryView extends ItemView {
   private sortKey: LibraryUiState["sortKey"] = DEFAULT_LIBRARY_UI_STATE.sortKey;
   private filtersExpanded = false;
   private searchTimer: number | null = null;
+  private preparedBooks: BookRecord[] | null = null;
+  private preparedAudiobooks: AudiobookRecord[] | null = null;
   private focusAfterRender: {
     selector: string;
     index?: number;
@@ -68,6 +71,8 @@ export class BookLibraryView extends ItemView {
   }
 
   async render(): Promise<void> {
+    this.preparedBooks = null;
+    this.preparedAudiobooks = null;
     this.rootEl.empty();
     const toolbar = this.rootEl.createDiv({ cls: "book-library-toolbar" });
     const hasActiveFilter = Boolean(
@@ -150,6 +155,8 @@ export class BookLibraryView extends ItemView {
     sortSelect.addEventListener("change", () => {
       this.sortKey = sortSelect.value as SortKey;
       this.visibleLimit = 300;
+      this.preparedBooks = null;
+      this.preparedAudiobooks = null;
       this.persistUiState();
       this.renderResults();
     });
@@ -225,13 +232,15 @@ export class BookLibraryView extends ItemView {
     stats.setAttribute("aria-live", "polite");
     if (this.libraryMode === "books") {
       const books = this.plugin.getBooks();
-      const filtered = this.filterBooks(books);
+      const filtered = this.prepareBooks(books);
+      this.preparedBooks = filtered;
       stats.setText(this.plugin.t("view.stats", { count: filtered.length, total: books.length }));
       const tags = this.renderTagChips(books, this.filtersExpanded);
       if (tags) this.rootEl.appendChild(tags);
     } else {
       const audiobooks = Object.values(this.plugin.getAudiobooks());
-      const filtered = this.filterAudiobooks(audiobooks);
+      const filtered = this.prepareAudiobooks(audiobooks);
+      this.preparedAudiobooks = filtered;
       stats.setText(this.plugin.t("view.stats", { count: filtered.length, total: audiobooks.length }).replace(this.plugin.t("view.statsBooksName"), this.plugin.t("view.audiobooks")));
       const categories = this.renderAudiobookCategoryChips(audiobooks, this.filtersExpanded);
       if (categories) this.rootEl.appendChild(categories);
@@ -302,15 +311,6 @@ export class BookLibraryView extends ItemView {
       });
     }
     return container;
-  }
-
-  private filterAudiobooks(audiobooks: AudiobookRecord[]): AudiobookRecord[] {
-    const q = this.query.toLowerCase().trim();
-    return audiobooks.filter((audiobook) => {
-      if (this.selectedAudiobookCategory && !audiobook.category.includes(this.selectedAudiobookCategory)) return false;
-      if (q && !(audiobook.title + " " + audiobook.author + " " + audiobook.category.join(" ")).toLowerCase().includes(q)) return false;
-      return true;
-    });
   }
 
   private hasActiveFilters(): boolean {
@@ -409,22 +409,23 @@ export class BookLibraryView extends ItemView {
     this.renderBooks();
   }
 
-  private filterBooks(books: BookRecord[]): BookRecord[] {
-    const q = this.query.toLowerCase().trim();
-    return books.filter((book) => {
-      if (this.formatFilter !== "all" && book.format !== this.formatFilter) return false;
-      if (this.selectedTag && !book.tags.includes(this.selectedTag)) return false;
-      if (q && !`${book.title} ${book.author} ${book.tags.join(" ")}`.toLowerCase().includes(q)) return false;
-      return true;
+  private prepareBooks(books = this.plugin.getBooks()): BookRecord[] {
+    return prepareBookLibraryResults(books, {
+      query: this.query,
+      formatFilter: this.formatFilter,
+      selectedTag: this.selectedTag,
+      sortKey: this.sortKey,
+      language: this.plugin.language,
     });
   }
 
-  private sortedBooks(books: BookRecord[]): BookRecord[] {
-    return sortBooks(books, this.sortKey, this.plugin.language);
-  }
-
-  private sortedAudiobooks(books: AudiobookRecord[]): AudiobookRecord[] {
-    return sortAudiobooks(books, this.sortKey, this.plugin.language);
+  private prepareAudiobooks(audiobooks = Object.values(this.plugin.getAudiobooks())): AudiobookRecord[] {
+    return prepareAudiobookLibraryResults(audiobooks, {
+      query: this.query,
+      selectedCategory: this.selectedAudiobookCategory,
+      sortKey: this.sortKey,
+      language: this.plugin.language,
+    });
   }
 
   private renderBooks(): void {
@@ -433,7 +434,8 @@ export class BookLibraryView extends ItemView {
       if (!grid) return;
       grid.empty();
       const allBooks = this.plugin.getBooks();
-      const books = this.sortedBooks(this.filterBooks(allBooks));
+      const books = this.preparedBooks ?? this.prepareBooks(allBooks);
+      this.preparedBooks = books;
       if (books.length === 0) {
         const empty = grid.createDiv({ cls: "book-library-empty" });
         const filteredEmpty = allBooks.length > 0;
@@ -487,7 +489,8 @@ export class BookLibraryView extends ItemView {
       const grid = this.rootEl.querySelector(".book-library-grid") as HTMLElement;
       if (!grid) return;
       grid.empty();
-      const audiobooks = this.sortedAudiobooks(this.filterAudiobooks(Object.values(this.plugin.getAudiobooks())));
+      const audiobooks = this.preparedAudiobooks ?? this.prepareAudiobooks();
+      this.preparedAudiobooks = audiobooks;
       if (audiobooks.length === 0) {
         const total = Object.values(this.plugin.getAudiobooks()).length;
         const empty = grid.createDiv({ cls: "book-library-empty" });
@@ -602,12 +605,13 @@ export class BookLibraryView extends ItemView {
       more.remove();
       const insertionIndex = grid.children.length;
       if (audiobooks) {
-        const records = this.sortedAudiobooks(this.filterAudiobooks(Object.values(this.plugin.getAudiobooks())));
+        const records = this.preparedAudiobooks ?? this.prepareAudiobooks();
         for (const record of records.slice(start, this.visibleLimit)) {
           this.appendAudiobookCard(grid, record);
         }
       } else {
-        for (const record of this.sortedBooks(this.filterBooks(this.plugin.getBooks())).slice(start, this.visibleLimit)) {
+        const records = this.preparedBooks ?? this.prepareBooks();
+        for (const record of records.slice(start, this.visibleLimit)) {
           this.renderCard(grid, record);
         }
       }

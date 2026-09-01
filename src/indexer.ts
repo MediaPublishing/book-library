@@ -3,7 +3,7 @@ import * as path from "path";
 import { parseEpub, extractEpubCover } from "./epub";
 import { parsePdfMetadata } from "./pdf";
 import { MetadataProvider, rasterImageExtension, type FetchedBookMetadata } from "./metadata";
-import { computeRelatedBooks, extractTagsFromPath } from "./related";
+import { computeRelatedBooksForLibrary, extractTagsFromPath } from "./related";
 import { normalizeDisplayText, sha256, slugify } from "./util";
 import { isRecord, normalizeExternalIdentities, normalizeSourceBase, normalizeSourceDescriptions, normalizeSourceRatings } from "./source-metadata";
 import { assignCatalogFileNames, catalogFileName, renderCatalogRecord } from "./catalog";
@@ -144,9 +144,10 @@ export class LibraryIndexer {
       catalogPaths[record.hash] = record.catalogPath;
     }
 
+    const relatedByHash = computeRelatedBooksForLibrary(Object.values(index.entries));
     const titles: Record<string, string> = {};
     for (const [relatedHash, relatedBook] of Object.entries(index.entries)) {
-      index.entries[relatedHash].related = computeRelatedBooks(relatedBook, Object.values(index.entries));
+      index.entries[relatedHash].related = relatedByHash.get(relatedHash) || [];
       titles[relatedHash] = relatedBook.title;
     }
     writeBookTopicMocs(

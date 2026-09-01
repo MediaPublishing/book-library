@@ -60,4 +60,54 @@ describe("ai pipeline smoke", () => {
     expect(result.provider).toBe("local");
     expect(result.costCents).toBe(0);
   });
+
+  it("trennt Wiki-Cache-Einträge nach Ausgabesprache", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "bl-ai-language-"));
+    const script = path.join(root, "echo-model.sh");
+    fs.writeFileSync(script, "#!/bin/sh\nprintf '%s\\n' '## Related books'\n", { mode: 0o755 });
+    const cacheDir = path.join(root, "_wiki");
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      aiProvider: "local" as const,
+      localModelCommand: `bash ${script} {prompt}`,
+      maxTokensPerBook: 4000,
+      budgetCents: 100,
+    };
+    const source = "One source-backed chapter.";
+    await new AiPipeline(settings, cacheDir, { spentCents: 0, limitCents: 100 }, "en")
+      .generateWikiFromText(book("same-hash", "Same Book"), source);
+    await new AiPipeline(settings, cacheDir, { spentCents: 0, limitCents: 100 }, "de")
+      .generateWikiFromText(book("same-hash", "Same Book"), source);
+
+    const cache = JSON.parse(fs.readFileSync(path.join(cacheDir, ".wiki-cache.json"), "utf8"));
+    expect(Object.keys(cache)).toHaveLength(2);
+    expect(Object.keys(cache).some((key) => key.includes("|en|"))).toBe(true);
+    expect(Object.keys(cache).some((key) => key.includes("|de|"))).toBe(true);
+  });
+
+  it("schreibt kontrollierte Buch-Querverweise genau einmal auf die Wiki-Hauptseite", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "bl-ai-links-"));
+    const script = path.join(root, "echo-model.sh");
+    fs.writeFileSync(script, "#!/bin/sh\nprintf '%s\\n' '## Similar books' '- [[Invented Book]]'\n", { mode: 0o755 });
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      aiProvider: "local" as const,
+      localModelCommand: `bash ${script} {prompt}`,
+      maxTokensPerBook: 4000,
+      budgetCents: 100,
+    };
+    const result = await new AiPipeline(settings, path.join(root, "_wiki"), {
+      spentCents: 0,
+      limitCents: 100,
+    }, "en").generateWikiFromText(book("links", "Linked Book"), "One source-backed chapter.", [{
+      target: "_catalog/Deep Work — Cal Newport",
+      title: "Deep Work",
+      reasons: ["Shared theme: focus"],
+    }]);
+
+    const combined = result.pages.map(({ content }) => content).join("\n");
+    expect(combined.match(/^## Related books$/gm)).toHaveLength(1);
+    expect(combined).not.toContain("Invented Book");
+    expect(result.pages.at(-1)?.content).toContain("[[_catalog/Deep Work — Cal Newport|Deep Work]]");
+  });
 });

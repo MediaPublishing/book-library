@@ -26,6 +26,8 @@ Ruhig, präzise, vertrauenswürdig. Die Oberfläche soll sich wie ein gutes Obsi
 ## Design Principles
 
 - Katalog zuerst: Bücher, Suche und Filter bleiben die Hauptoberfläche.
+- Semantik bleibt lokal und erklärbar: Relevanz entsteht aus gewichteten Katalogfeldern; externe Embeddings sind keine Voraussetzung.
+- Wiki-Links brauchen bestehende Ziele und mindestens ein starkes Autor-, Kategorie- oder Themensignal.
 - Inhalt vor Technik: Beschreibung, Bewertung und Zusammenhänge stehen vor Dateipfaden und internen Statusfeldern.
 - Herkunft sichtbar machen: Jede externe oder generierte Aussage bleibt ihrer Quelle zugeordnet.
 - Progressiv offenlegen: Seltene Metadaten und technische Details bleiben erreichbar, dominieren aber nicht.

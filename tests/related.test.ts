@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { computeRelatedBooks, extractTagsFromPath } from "../src/related";
+import {
+  buildRelatedBookSemanticIndex,
+  computeRelatedBooks,
+  computeRelatedBooksForLibrary,
+  explainRelatedBooks,
+  extractTagsFromPath,
+} from "../src/related";
 import type { BookRecord } from "../src/types";
 
 function book(hash: string, title: string, author: string, tags: string[]): BookRecord {
@@ -72,6 +78,46 @@ describe("related", () => {
       book("b", "Buch B", "Unbekannt", []),
     ]);
     expect(related).toEqual([]);
+  });
+
+  it("erkennt starke semantische Themenüberschneidungen und erklärt den Link", () => {
+    const target = book("a", "Operational AI", "Autor X", []);
+    target.themes = ["Responsible automation"];
+    target.description = "How teams introduce reliable AI workflows.";
+    const candidate = book("b", "Automation at Work", "Autor Y", []);
+    candidate.themes = ["Automation strategy"];
+    candidate.description = "A field guide for business teams.";
+
+    const matches = explainRelatedBooks(target, [target, candidate]);
+
+    expect(matches.map((match) => match.hash)).toEqual(["b"]);
+    expect(matches[0].reasons.join(" ")).toMatch(/themen|automation/i);
+  });
+
+  it("verlinkt nicht allein aufgrund generischer Beschreibungswörter", () => {
+    const target = book("a", "Operational AI", "Autor X", []);
+    target.description = "A practical guide for teams.";
+    const candidate = book("b", "Bread", "Autor Y", []);
+    candidate.description = "A practical guide for beginners.";
+
+    expect(explainRelatedBooks(target, [target, candidate])).toEqual([]);
+  });
+
+  it("baut große Related-Listen über einen vorberechneten Signalindex", () => {
+    const target = book("target", "Operational AI", "Autor X", []);
+    target.themes = ["Responsible automation"];
+    const match = book("match", "Automation at Work", "Autor Y", []);
+    match.themes = ["Automation strategy"];
+    const unrelated = Array.from({ length: 2_000 }, (_, index) =>
+      book(`other-${index}`, `Cooking ${index}`, `Chef ${index}`, [])
+    );
+    const all = [target, match, ...unrelated];
+    const index = buildRelatedBookSemanticIndex(all);
+    const related = computeRelatedBooksForLibrary(all);
+
+    expect(index.prepared.size).toBe(all.length);
+    expect(related.get("target")).toEqual(["match"]);
+    expect(related.get("other-1999")).toEqual([]);
   });
 
   it("extrahiert Tags aus Ordnerpfaden", () => {

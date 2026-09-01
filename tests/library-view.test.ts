@@ -5,6 +5,12 @@ import path from "node:path";
 const source = fs.readFileSync(path.resolve(__dirname, "../src/library-view.ts"), "utf8");
 
 describe("library view accessibility and filter states", () => {
+  it("uses the local semantic ranker for books and audiobooks", () => {
+    expect(source).toMatch(/prepareAudiobookLibraryResults, prepareBookLibraryResults/);
+    expect(source).toMatch(/prepareBookLibraryResults\(books/);
+    expect(source).toMatch(/prepareAudiobookLibraryResults\(audiobooks/);
+  });
+
   it("uses semantic card containers with sibling open and details actions", () => {
     expect(source).toMatch(/createEl\("article", \{ cls: "book-library-card" \}\)/);
     expect(source).toMatch(/book-library-card-actions/);

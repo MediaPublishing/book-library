@@ -280,8 +280,8 @@ type Translation = Record<Language, string>;
 
 export const translations: Record<TranslationKey, Translation> = {
   "view.searchPlaceholder": {
-    en: "Search title or author ...",
-    de: "Titel oder Autor suchen ...",
+    en: "Semantically search title, author or topic ...",
+    de: "Titel, Autor oder Thema semantisch suchen ...",
   },
   "view.title": { en: "Book Library", de: "Book Library" },
   "view.loadMore": { en: "Show {count} more", de: "{count} weitere anzeigen" },

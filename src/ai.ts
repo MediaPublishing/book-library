@@ -2,7 +2,7 @@ import { execFile } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 import { requestUrl } from "obsidian";
-import { chunkText, estimateTokens, genreOf, wikiChapterPath, wikiMainPath } from "./util";
+import { chunkText, estimateTokens, genreOf, sha256, wikiChapterPath, wikiMainPath } from "./util";
 import type { BookRecord, LibrarySettings } from "./types";
 import { catalogFileName, catalogLinkTarget } from "./catalog";
 import { translate, type Language } from "./i18n";
@@ -19,7 +19,14 @@ export interface BudgetState {
   limitCents: number;
 }
 
-const PROMPT_VERSION = 1;
+export interface WikiCrossReference {
+  /** Existing, vault-relative Obsidian link target selected by the local ranker. */
+  target: string;
+  title: string;
+  reasons: string[];
+}
+
+const PROMPT_VERSION = 3;
 
 interface WikiSection {
   title: string;
@@ -50,7 +57,8 @@ export function buildMetadataWiki(
   record: BookRecord,
   wikiDir: string,
   language: Language = "en",
-  reviewsEnabled = true
+  reviewsEnabled = true,
+  crossReferences: readonly WikiCrossReference[] = []
 ): WikiResult {
   if (!hasMetadataWikiSource(record, reviewsEnabled)) {
     throw new Error("Keine Metadaten für ein Fallback-Wiki vorhanden.");
@@ -84,6 +92,10 @@ export function buildMetadataWiki(
     lines.push(german ? "- Keine Kategorien vorhanden." : "- No categories available.");
   }
   lines.push("");
+
+  if (crossReferences.length) {
+    lines.push(...renderWikiCrossReferenceSection(crossReferences, language), "");
+  }
 
   if (reviews.length) {
     lines.push(`## ${german ? "Lokale Rezensionen" : "Local reviews"}`, "");
@@ -156,13 +168,22 @@ export class AiPipeline {
 
   async generateWiki(
     record: BookRecord,
-    markdownPath: string
+    markdownPath: string,
+    crossReferences: readonly WikiCrossReference[] = []
+  ): Promise<WikiResult> {
+    const text = readOptionalWikiMarkdown(markdownPath);
+    return this.generateWikiFromText(record, text, crossReferences);
+  }
+
+  async generateWikiFromText(
+    record: BookRecord,
+    text: string,
+    crossReferences: readonly WikiCrossReference[] = []
   ): Promise<WikiResult> {
     if (this.settings.aiProvider === "none") {
       throw new Error("Kein AI-Provider konfiguriert.");
     }
-    const text = fs.existsSync(markdownPath) ? fs.readFileSync(markdownPath, "utf8") : "";
-    if (!text) {
+    if (!text.trim()) {
       throw new Error("Kein Markdown-Text vorhanden. EPUB→Markdown zuerst ausführen.");
     }
     const chunks = splitWikiSections(text, Math.max(500, Math.floor(this.settings.maxTokensPerBook / 2)));
@@ -171,9 +192,14 @@ export class AiPipeline {
     let costCents = 0;
     const provider = this.settings.aiProvider;
     const model = this.settings.aiModel || provider;
+    const crossReferenceFingerprint = sha256(JSON.stringify(crossReferences.map(({ target, title, reasons }) => ({
+      target,
+      title,
+      reasons,
+    }))));
 
     for (const chunk of chunks) {
-      const cacheKey = `${record.hash}|${provider}|${model}|v${PROMPT_VERSION}|${chunk.title}|${chunk.text.slice(0, 64)}`;
+      const cacheKey = `${record.hash}|${provider}|${model}|${this.language}|v${PROMPT_VERSION}|${crossReferenceFingerprint}|${chunk.title}|${chunk.text.slice(0, 64)}`;
       const cached = this.cache[cacheKey];
       if (cached) {
         tokens += estimateTokens(chunk.text);
@@ -183,13 +209,14 @@ export class AiPipeline {
       if (this.budget.spentCents >= this.budget.limitCents) {
         throw new Error("Budget erreicht. Nächster Lauf setzt das Queue-Limit.");
       }
-      const result = await this.callProvider(chunk.text, record);
+      const result = await this.callProvider(chunk.text, record, crossReferences);
       tokens += result.tokens;
       costCents += result.costCents;
       this.budget.spentCents += result.costCents;
-      this.cache[cacheKey] = result.text;
+      const controlledText = stripBookCrossReferenceSections(result.text);
+      this.cache[cacheKey] = controlledText;
       this.saveCache();
-      pages.push({ file: this.pageFile(record, pages.length), content: chapterContent(chunk.title, result.text) });
+      pages.push({ file: this.pageFile(record, pages.length), content: chapterContent(chunk.title, controlledText) });
     }
 
     const summary = pages.map((p) => p.content).join("\n\n").slice(0, 4000);
@@ -201,7 +228,12 @@ export class AiPipeline {
         ...pages,
         {
           file: wikiMainPath(record, this.settings.wikiDir || "_wiki"),
-          content: `# ${record.title}\n\n## Contents\n\n${contents}\n\n## Key ideas\n\n${summary}\n`,
+          content: [
+            `# ${record.title}`,
+            `## Contents\n\n${contents}`,
+            `## Key ideas\n\n${summary}`,
+            renderWikiCrossReferenceSection(crossReferences, this.language).join("\n"),
+          ].join("\n\n") + "\n",
         },
       ],
       tokens,
@@ -216,9 +248,10 @@ export class AiPipeline {
 
   private async callProvider(
     chunk: string,
-    record: BookRecord
+    record: BookRecord,
+    crossReferences: readonly WikiCrossReference[]
   ): Promise<{ text: string; tokens: number; costCents: number }> {
-    const prompt = buildWikiPrompt(record, chunk, this.language);
+    const prompt = buildWikiPrompt(record, chunk, this.language, crossReferences);
     const tokens = estimateTokens(chunk) + estimateTokens(prompt) / 2;
     switch (this.settings.aiProvider) {
       case "openrouter": {
@@ -338,9 +371,23 @@ export function buildWikiIndex(
   return lines.join("\n").trim() + "\n";
 }
 
-export function buildWikiPrompt(record: BookRecord, chunk: string, language: Language = "en"): string {
+export function buildWikiPrompt(
+  record: BookRecord,
+  chunk: string,
+  language: Language = "en",
+  crossReferences: readonly WikiCrossReference[] = []
+): string {
   const t = (key: Parameters<typeof translate>[1]) => translate(language, key);
   const bookLabel = language === "de" ? "Buch" : "Book";
+  const approvedHeading = language === "de"
+    ? "Freigegebene Buch-Querverweise"
+    : "Approved book cross-references";
+  const approvedInstruction = language === "de"
+    ? "Verwende im Abschnitt für Buch-Querverweise ausschliesslich diese geprüften Ziele. Erfinde keine weiteren Buchlinks. Falls die Liste leer ist, schreibe dort: Keine geprüften Querverweise."
+    : "In the book cross-reference section, use only these approved targets. Do not invent any other book links. If the list is empty, write: No approved cross-references.";
+  const approved = crossReferences.length
+    ? renderWikiCrossReferenceItems(crossReferences)
+    : [language === "de" ? "- Keine geprüften Querverweise." : "- No approved cross-references."];
   return [
     t("ai.createWikiNote"),
     `${bookLabel}: ${record.title}${record.author ? ` (${record.author})` : ""}`,
@@ -354,8 +401,94 @@ export function buildWikiPrompt(record: BookRecord, chunk: string, language: Lan
     "",
     t("ai.stayFactual"),
     "",
+    `=== ${approvedHeading.toUpperCase()} ===`,
+    approvedInstruction,
+    ...approved,
+    "",
     "=== BUCHABSCHNITT ===",
     "",
     chunk,
   ].join("\n");
+}
+
+/**
+ * Replaces only the generated book cross-reference section with the local
+ * whitelist. Concept links in the rest of the note stay untouched.
+ */
+export function enforceWikiCrossReferences(
+  content: string,
+  crossReferences: readonly WikiCrossReference[],
+  language: Language = "en"
+): string {
+  const section = renderWikiCrossReferenceSection(crossReferences, language).join("\n");
+  const body = stripBookCrossReferenceSections(content);
+  return body ? `${body}\n\n${section}` : section;
+}
+
+function stripBookCrossReferenceSections(content: string): string {
+  const lines = content.replace(/\r\n?/g, "\n").split("\n");
+  const kept: string[] = [];
+  let skippingControlledSection = false;
+
+  for (const line of lines) {
+    if (isBookCrossReferenceHeading(line)) {
+      skippingControlledSection = true;
+      continue;
+    }
+    if (skippingControlledSection && /^##\s+/i.test(line)) {
+      skippingControlledSection = false;
+    }
+    if (!skippingControlledSection) kept.push(line);
+  }
+
+  return kept.join("\n").trim();
+}
+
+function isBookCrossReferenceHeading(line: string): boolean {
+  return /^##\s+(?:(?:book\s+)?cross[- ]?references?|querverweise|related books|similar books|verwandte bücher|ähnliche bücher)\b.*$/i.test(line);
+}
+
+function renderWikiCrossReferenceSection(
+  crossReferences: readonly WikiCrossReference[],
+  language: Language
+): string[] {
+  const heading = language === "de" ? "## Verwandte Bücher" : "## Related books";
+  const empty = language === "de" ? "- Keine geprüften Querverweise." : "- No approved cross-references.";
+  return [heading, "", ...(crossReferences.length ? renderWikiCrossReferenceItems(crossReferences) : [empty])];
+}
+
+function renderWikiCrossReferenceItems(crossReferences: readonly WikiCrossReference[]): string[] {
+  return crossReferences.map((reference) => {
+    const reasons = reference.reasons.map(sanitizeReason).filter(Boolean).join("; ");
+    return `- ${renderSafeWikiLink(reference.target, reference.title)}${reasons ? ` — ${reasons}` : ""}`;
+  });
+}
+
+function sanitizeWikiPart(value: string): string {
+  return value.replace(/[\[\]|\u0000-\u001f\u007f]/g, "").trim();
+}
+
+function sanitizeReason(value: string): string {
+  return value.replace(/\s+/g, " ").replace(/[\[\]]/g, "").trim();
+}
+
+/** Build an Obsidian link from metadata without allowing link or line injection. */
+export function renderSafeWikiLink(target: string, title: string): string {
+  return `[[${sanitizeWikiPart(target)}|${sanitizeWikiPart(title)}]]`;
+}
+
+/** Missing Markdown is a valid metadata-fallback case; other read failures are not. */
+export function readOptionalWikiMarkdown(markdownPath: string | null): string {
+  if (!markdownPath) return "";
+  try {
+    return fs.readFileSync(markdownPath, "utf8");
+  } catch (error) {
+    if (isNodeError(error) && error.code === "ENOENT") return "";
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(`Markdown-Datei konnte nicht gelesen werden: ${detail}`);
+  }
+}
+
+function isNodeError(error: unknown): error is NodeJS.ErrnoException {
+  return error instanceof Error && "code" in error;
 }

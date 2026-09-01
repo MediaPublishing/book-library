@@ -11,7 +11,7 @@ Book Library is local-first. It does not include telemetry, analytics, crash rep
 ## Optional network access
 
 - **Metadata/covers:** when enabled, title, author or ISBN may be sent to Open Library and Google Books.
-- **AI wiki:** selected text chunks may be sent to the configured provider (Codex CLI, Claude CLI, OpenCode, OpenRouter or a local command).
+- **AI wiki:** selected text chunks plus up to six locally approved catalog targets and their match reasons may be sent to the configured provider (Codex CLI, Claude CLI, OpenCode, OpenRouter or a local command).
 - **AI covers:** title, author and category hints may be sent to OpenAI when you explicitly start a batch.
 - **Source links:** opening an external link follows the destination's privacy policy.
 
