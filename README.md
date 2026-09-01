@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/brand/logo.svg" alt="Book Library for Obsidian" width="420">
+  <img src="assets/brand/logo.svg" alt="Book Library for Obsidian" width="200">
 </p>
 
 <p align="center">
